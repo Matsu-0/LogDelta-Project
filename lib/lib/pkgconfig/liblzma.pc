@@ -1,0 +1,20 @@
+#
+# Author: Lasse Collin
+#
+# This file has been put into the public domain.
+# You can do whatever you want with this file.
+#
+
+prefix=/Users/matsu/Desktop/Data-Compression/RecordDelta/lib
+exec_prefix=/Users/matsu/Desktop/Data-Compression/RecordDelta/lib
+libdir=/Users/matsu/Desktop/Data-Compression/RecordDelta/lib/lib
+includedir=/Users/matsu/Desktop/Data-Compression/RecordDelta/lib/include
+
+Name: liblzma
+Description: General purpose data compression library
+URL: https://tukaani.org/xz/
+Version: 5.4.5
+Cflags: -I${includedir}
+Cflags.private: -DLZMA_API_STATIC
+Libs: -L${libdir} -llzma
+Libs.private:  
