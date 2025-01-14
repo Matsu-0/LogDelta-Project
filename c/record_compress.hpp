@@ -22,12 +22,29 @@ void byteArrayEncoding(const std::vector<Record>& records,
                       const std::string& output_path, 
                       CompressorType compressor = CompressorType::NONE);
 
-double main_encoding_compress(const std::string& input_path, 
+double main_encoding_compress_approx(const std::string& input_path, 
                             const std::string& output_path, 
                             int window_size = 8,
                             int log_length = 256,
                             double threshold = 0.035,
                             int block_size = 32768,
                             CompressorType compressor = CompressorType::NONE);
+
+// Add global variables for statistics
+extern size_t total_method_size;
+extern size_t total_line_size;
+extern size_t total_begin_size;
+extern size_t total_operation_size;
+extern size_t total_length_size;
+extern size_t total_position_size;
+extern size_t total_string_size;
+
+extern size_t total_method_compressed;
+extern size_t total_line_compressed;
+extern size_t total_begin_compressed;
+extern size_t total_operation_compressed;
+extern size_t total_length_compressed;
+extern size_t total_position_compressed;
+extern size_t total_string_compressed;
 
 #endif // RECORD_COMPRESS_HPP 

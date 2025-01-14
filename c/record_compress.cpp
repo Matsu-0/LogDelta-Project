@@ -11,9 +11,55 @@
 #include <iostream>
 #include <bitset>
 
+// Define global variables
+size_t total_method_size = 0;
+size_t total_line_size = 0;
+size_t total_begin_size = 0;
+size_t total_operation_size = 0;
+size_t total_length_size = 0;
+size_t total_position_size = 0;
+size_t total_string_size = 0;
+
+size_t total_method_compressed = 0;
+size_t total_line_compressed = 0;
+size_t total_begin_compressed = 0;
+size_t total_operation_compressed = 0;
+size_t total_length_compressed = 0;
+size_t total_position_compressed = 0;
+size_t total_string_compressed = 0;
+
+size_t getFileSize(const std::string& filename);
+
+size_t getFileSize(const std::string& filename) {
+    std::ifstream file(filename, std::ios::binary | std::ios::ate);
+    return file.tellg();
+}
+
 void byteArrayEncoding(const std::vector<Record>& records, const std::string& output_path, CompressorType compressor) {
+    // Add size statistics variables - initialize with header size
+    size_t method_size = 2;
+    size_t another_line_size = 2;
+    size_t begin_size = 2;
+    size_t operation_size_bytes = 2;
+    size_t length_size = 2;
+    size_t position_size = 2;
+    size_t string_size = 8;
+
     const int encoding_block = 1024;
     BitBuffer stream;
+    BitBuffer total_stream;
+
+    // Temporary file for progressive compression
+    std::string temp_path = output_path + ".temp";
+    
+    // Track compressed sizes at each stage
+    size_t compressed_after_method = 0;
+    size_t compressed_after_line = 0;
+    size_t compressed_after_begin = 0;
+    size_t compressed_after_op = 0;
+    size_t compressed_after_length = 0;
+    size_t compressed_after_position = 0;
+    size_t compressed_after_string = 0;
 
     // Separate records with method 0 and 1
     std::vector<Record> records0, records1;
@@ -44,6 +90,14 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
         int bf = std::stoi(rle_string.substr(i * 8, 8), nullptr, 2);
         stream.encode(bf, 8);
     }
+    method_size += method_length;
+    
+    // Compress method
+    total_stream = stream;
+    total_stream.write(temp_path, "wb", CompressorType::LZMA);
+    compressed_after_method = getFileSize(temp_path);
+    total_method_size += method_size;
+    total_method_compressed += compressed_after_method;
 
     // Encode another_line using RLE
     std::vector<int> another_line_list;
@@ -64,6 +118,14 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
         int bf = std::stoi(rle_string.substr(i * 8, 8), nullptr, 2);
         stream.encode(bf, 8);
     }
+    another_line_size += line_length;
+
+    // Compress another_line
+    total_stream = stream;
+    total_stream.write(temp_path, "wb", CompressorType::LZMA);
+    compressed_after_line = getFileSize(temp_path);
+    total_line_size += another_line_size;
+    total_line_compressed += (compressed_after_line - compressed_after_method);
 
     // Encode begin using bit packing
     std::vector<int> begins;
@@ -88,7 +150,15 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
             int bf = std::stoi(bit_packing_string.substr(i * 8, 8), nullptr, 2);
             stream.encode(bf, 8);
         }
+        begin_size += leng;
     }
+
+    // Compress begin
+    total_stream = stream;
+    total_stream.write(temp_path, "wb", CompressorType::LZMA);
+    compressed_after_begin = getFileSize(temp_path);
+    total_begin_size += begin_size;
+    total_begin_compressed += (compressed_after_begin - compressed_after_line);
 
     // Encode operation_size using bit packing
     std::vector<int> operation_sizes;
@@ -113,7 +183,15 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
             int bf = std::stoi(bit_packing_string.substr(i * 8, 8), nullptr, 2);
             stream.encode(bf, 8);
         }
+        operation_size_bytes += leng;
     }
+    
+    // Compress operation
+    total_stream = stream;
+    total_stream.write(temp_path, "wb", CompressorType::LZMA);
+    compressed_after_op = getFileSize(temp_path);
+    total_operation_size += operation_size_bytes;
+    total_operation_compressed += (compressed_after_op - compressed_after_begin);
 
     // Encode lengths
     std::vector<int> length_list;
@@ -145,8 +223,16 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
                 int bf = std::stoi(bit_packing_string.substr(j * 8, 8), nullptr, 2);
                 stream.encode(bf, 8);
             }
+            length_size += leng;
         }
     }
+
+    // Compress length
+    total_stream = stream;
+    total_stream.write(temp_path, "wb", CompressorType::LZMA);
+    compressed_after_length = getFileSize(temp_path);
+    total_length_size += length_size;
+    total_length_compressed += (compressed_after_length - compressed_after_op);
 
     // Encode positions
     if (records0.empty()) {
@@ -190,6 +276,7 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
                 int bf = std::stoi(bit_packing_string.substr(j * 8, 8), nullptr, 2);
                 stream.encode(bf, 8);
             }
+            position_size += leng;
         }
 
         // Encode delta positions
@@ -213,8 +300,16 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
                 int bf = std::stoi(bit_packing_string.substr(j * 8, 8), nullptr, 2);
                 stream.encode(bf, 8);
             }
+            position_size += leng;
         }
     }
+
+    // Compress position
+    total_stream = stream;
+    total_stream.write(temp_path, "wb", CompressorType::LZMA);
+    compressed_after_position = getFileSize(temp_path);
+    total_position_size += position_size;
+    total_position_compressed += (compressed_after_position - compressed_after_length);
 
     // Encode strings
     std::string sub_string;
@@ -229,14 +324,26 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
         }
     }
 
+    // Encode string length first
+    stream.encode(sub_string.length(), 64);
+    
+    // Then encode string content
     for (char byte : sub_string) {
         stream.encode(static_cast<unsigned char>(byte), 8);
     }
+    string_size += sub_string.length();
+
+    // Compress string
+    total_stream = stream;
+    total_stream.write(temp_path, "wb", CompressorType::LZMA);
+    compressed_after_string = getFileSize(temp_path);
+    total_string_size += string_size;
+    total_string_compressed += (compressed_after_string - compressed_after_position);
 
     stream.write(output_path, "ab", compressor);
 }
 
-double main_encoding_compress(const std::string& input_path, const std::string& output_path, 
+double main_encoding_compress_approx(const std::string& input_path, const std::string& output_path, 
                             int window_size, int log_length,
                             double threshold, int block_size, 
                             CompressorType compressor) {
@@ -305,23 +412,10 @@ double main_encoding_compress(const std::string& input_path, const std::string& 
 
             auto distance_start = std::chrono::high_resolution_clock::now();
 
-            // Calculate distances: cosine distance
-            double min_distance = 1.0;
-            for (int i = 0; i < q.size(); i++) {
-                double tmp_dist = Distance::qgramCosineDistance(q[i], line);
-                if (tmp_dist < min_distance) {
-                    min_distance = tmp_dist;
-                    begin = i;
-                }
-            }
-            if (min_distance >= threshold) {
-                begin = -1;
-            }
-
-            // // Calculate distances: minhash distance
+            // // Calculate distances: cosine distance
             // double min_distance = 1.0;
             // for (int i = 0; i < q.size(); i++) {
-            //     double tmp_dist = Distance::minHashDistance(q[i], line);
+            //     double tmp_dist = Distance::qgramCosineDistance(q[i], line);
             //     if (tmp_dist < min_distance) {
             //         min_distance = tmp_dist;
             //         begin = i;
@@ -330,6 +424,19 @@ double main_encoding_compress(const std::string& input_path, const std::string& 
             // if (min_distance >= threshold) {
             //     begin = -1;
             // }
+
+            // Calculate distances: minhash distance
+            double min_distance = 1.0;
+            for (int i = 0; i < q.size(); i++) {
+                double tmp_dist = Distance::minHashDistance(q[i], line);
+                if (tmp_dist < min_distance) {
+                    min_distance = tmp_dist;
+                    begin = i;
+                }
+            }
+            if (min_distance >= threshold) {
+                begin = -1;
+            }
 
             // // Calculate distances: qgram match
             // double min_distance = line.length();
@@ -430,6 +537,26 @@ double main_encoding_compress(const std::string& input_path, const std::string& 
     std::cout << "  Lines matched: " << matched_lines << std::endl;
     std::cout << "  Match rate: " << (100.0 * matched_lines / total_lines) << "%" << std::endl;
 
+    std::cout << "\nTotal encoding size statistics:" << std::endl;
+    std::cout << "  Method size: " << total_method_size << " bytes" << std::endl;
+    std::cout << "  Another line size: " << total_line_size << " bytes" << std::endl;
+    std::cout << "  Begin size: " << total_begin_size << " bytes" << std::endl;
+    std::cout << "  Operation size: " << total_operation_size << " bytes" << std::endl;
+    std::cout << "  Length size: " << total_length_size << " bytes" << std::endl;
+    std::cout << "  Position size: " << total_position_size << " bytes" << std::endl;
+    std::cout << "  String size: " << total_string_size << " bytes" << std::endl;
+    std::cout << "  Total size: " << (6 + total_method_size + total_line_size + total_begin_size + 
+        total_operation_size + total_length_size + total_position_size + total_string_size) << " bytes" << std::endl;
+
+    std::cout << "\nTotal compression size statistics:" << std::endl;
+    std::cout << "  Method compression: " << total_method_compressed << " bytes" << std::endl;
+    std::cout << "  Another line compression: " << total_line_compressed << " bytes" << std::endl;
+    std::cout << "  Begin compression: " << total_begin_compressed << " bytes" << std::endl;
+    std::cout << "  Operation compression: " << total_operation_compressed << " bytes" << std::endl;
+    std::cout << "  Length compression: " << total_length_compressed << " bytes" << std::endl;
+    std::cout << "  Position compression: " << total_position_compressed << " bytes" << std::endl;
+    std::cout << "  String compression: " << total_string_compressed << " bytes" << std::endl;
+
     return total_time + comp_time;
 }
 
@@ -447,7 +574,7 @@ int main(int argc, char* argv[]) {
     std::string compressor_setting = "none";
     int window_size = 8;
     int log_length = 256;
-    double threshold = 0.06;
+    double threshold = 0.1;
     int block_size = 32768;
 
     CompressorType compressor = CompressorType::NONE;
@@ -532,7 +659,7 @@ int main(int argc, char* argv[]) {
     std::cout << "  Block size: " << block_size << std::endl;
 
     try {
-        double time_cost = main_encoding_compress(
+        double time_cost = main_encoding_compress_approx(
             input_path, 
             output_path, 
             window_size, 

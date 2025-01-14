@@ -22,7 +22,7 @@ SRCS = record_compress.cpp \
 OBJS = $(SRCS:.cpp=.o)
 
 # Target executable
-TARGET = record_compress_cosine
+TARGET = record_compress_test
 
 # Default target
 all: $(TARGET)
