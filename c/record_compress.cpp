@@ -236,7 +236,7 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
     stream.write(output_path, "ab", compressor);
 }
 
-double main_encoding_compress(const std::string& input_path, const std::string& output_path, 
+double main_encoding_compress_approx(const std::string& input_path, const std::string& output_path, 
                             int window_size, int log_length,
                             double threshold, int block_size, 
                             CompressorType compressor) {
@@ -415,137 +415,137 @@ double main_encoding_compress(const std::string& input_path, const std::string& 
     auto comp_end = std::chrono::high_resolution_clock::now();
     double comp_time = std::chrono::duration<double>(comp_end - comp_start).count();
 
-    // Print time statistics
-    std::cout << "\nTime statistics:" << std::endl;
-    std::cout << "  Read time: " << read_time << " seconds" << std::endl;
-    std::cout << "  Distance calculation time: " << distance_time << " seconds" << std::endl;
-    std::cout << "  Q-gram matching time: " << match_time << " seconds" << std::endl;
-    std::cout << "  Encoding time: " << encoding_time << " seconds" << std::endl;
-    std::cout << "  Compressor compression time: " << comp_time << " seconds" << std::endl;
-    std::cout << "  Total time: " << total_time + comp_time << " seconds" << std::endl;
+    // // Print time statistics
+    // std::cout << "\nTime statistics:" << std::endl;
+    // std::cout << "  Read time: " << read_time << " seconds" << std::endl;
+    // std::cout << "  Distance calculation time: " << distance_time << " seconds" << std::endl;
+    // std::cout << "  Q-gram matching time: " << match_time << " seconds" << std::endl;
+    // std::cout << "  Encoding time: " << encoding_time << " seconds" << std::endl;
+    // std::cout << "  Compressor compression time: " << comp_time << " seconds" << std::endl;
+    // std::cout << "  Total time: " << total_time + comp_time << " seconds" << std::endl;
 
-    // Print matching statistics
-    std::cout << "\nMatching statistics:" << std::endl;
-    std::cout << "  Total lines processed: " << total_lines << std::endl;
-    std::cout << "  Lines matched: " << matched_lines << std::endl;
-    std::cout << "  Match rate: " << (100.0 * matched_lines / total_lines) << "%" << std::endl;
+    // // Print matching statistics
+    // std::cout << "\nMatching statistics:" << std::endl;
+    // std::cout << "  Total lines processed: " << total_lines << std::endl;
+    // std::cout << "  Lines matched: " << matched_lines << std::endl;
+    // std::cout << "  Match rate: " << (100.0 * matched_lines / total_lines) << "%" << std::endl;
 
     return total_time + comp_time;
 }
 
-int main(int argc, char* argv[]) {
-    if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size]" << std::endl;
-        std::cerr << "Compressor options: none, lzma, gzip, zstd" << std::endl;
-        return 1;
-    }
+// int main(int argc, char* argv[]) {
+//     if (argc < 3) {
+//         std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size]" << std::endl;
+//         std::cerr << "Compressor options: none, lzma, gzip, zstd" << std::endl;
+//         return 1;
+//     }
 
-    std::string input_path = argv[1];
-    std::string output_path = argv[2];
+//     std::string input_path = argv[1];
+//     std::string output_path = argv[2];
     
-    // Default parameters
-    std::string compressor_setting = "none";
-    int window_size = 8;
-    int log_length = 256;
-    double threshold = 0.06;
-    int block_size = 32768;
+//     // Default parameters
+//     std::string compressor_setting = "none";
+//     int window_size = 8;
+//     int log_length = 256;
+//     double threshold = 0.06;
+//     int block_size = 32768;
 
-    CompressorType compressor = CompressorType::NONE;
+//     CompressorType compressor = CompressorType::NONE;
 
-    // // Print received arguments for debugging
-    // std::cout << "Received arguments:" << std::endl;
-    // for (int i = 0; i < argc; i++) {
-    //     std::cout << "  argv[" << i << "]: " << argv[i] << std::endl;
-    // }
+//     // // Print received arguments for debugging
+//     // std::cout << "Received arguments:" << std::endl;
+//     // for (int i = 0; i < argc; i++) {
+//     //     std::cout << "  argv[" << i << "]: " << argv[i] << std::endl;
+//     // }
 
-    // Optional parameters with bounds checking
-    if (argc > 3 && argv[3] != nullptr) {
-        compressor_setting = argv[3];
-    }
+//     // Optional parameters with bounds checking
+//     if (argc > 3 && argv[3] != nullptr) {
+//         compressor_setting = argv[3];
+//     }
     
-    // Set compressor type
-    if (compressor_setting == "lzma") {
-        compressor = CompressorType::LZMA;
-    } else if (compressor_setting == "gzip") {
-        compressor = CompressorType::GZIP;
-    } else if (compressor_setting == "zstd") {
-        compressor = CompressorType::ZSTD;
-    } else {
-        compressor = CompressorType::NONE;
-    }
+//     // Set compressor type
+//     if (compressor_setting == "lzma") {
+//         compressor = CompressorType::LZMA;
+//     } else if (compressor_setting == "gzip") {
+//         compressor = CompressorType::GZIP;
+//     } else if (compressor_setting == "zstd") {
+//         compressor = CompressorType::ZSTD;
+//     } else {
+//         compressor = CompressorType::NONE;
+//     }
 
-    // Parse numeric parameters
-    if (argc > 4 && argv[4] != nullptr) {
-        try {
-            std::string arg(argv[4]);
-            if (!arg.empty()) {
-                window_size = std::stoi(arg);
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Invalid window size parameter: " << argv[4] << std::endl;
-            return 1;
-        }
-    }
+//     // Parse numeric parameters
+//     if (argc > 4 && argv[4] != nullptr) {
+//         try {
+//             std::string arg(argv[4]);
+//             if (!arg.empty()) {
+//                 window_size = std::stoi(arg);
+//             }
+//         } catch (const std::exception& e) {
+//             std::cerr << "Invalid window size parameter: " << argv[4] << std::endl;
+//             return 1;
+//         }
+//     }
     
-    if (argc > 5 && argv[5] != nullptr) {
-        try {
-            std::string arg(argv[5]);
-            if (!arg.empty()) {
-                log_length = std::stoi(arg);
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Invalid log length parameter: " << argv[5] << std::endl;
-            return 1;
-        }
-    }
+//     if (argc > 5 && argv[5] != nullptr) {
+//         try {
+//             std::string arg(argv[5]);
+//             if (!arg.empty()) {
+//                 log_length = std::stoi(arg);
+//             }
+//         } catch (const std::exception& e) {
+//             std::cerr << "Invalid log length parameter: " << argv[5] << std::endl;
+//             return 1;
+//         }
+//     }
     
-    if (argc > 6 && argv[6] != nullptr) {
-        try {
-            std::string arg(argv[6]);
-            if (!arg.empty()) {
-                threshold = std::stod(arg);
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Invalid threshold parameter: " << argv[6] << std::endl;
-            return 1;
-        }
-    }
+//     if (argc > 6 && argv[6] != nullptr) {
+//         try {
+//             std::string arg(argv[6]);
+//             if (!arg.empty()) {
+//                 threshold = std::stod(arg);
+//             }
+//         } catch (const std::exception& e) {
+//             std::cerr << "Invalid threshold parameter: " << argv[6] << std::endl;
+//             return 1;
+//         }
+//     }
     
-    if (argc > 7 && argv[7] != nullptr) {
-        try {
-            std::string arg(argv[7]);
-            if (!arg.empty()) {
-                block_size = std::stoi(arg);
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Invalid block size parameter: " << argv[7] << std::endl;
-            return 1;
-        }
-    }
+//     if (argc > 7 && argv[7] != nullptr) {
+//         try {
+//             std::string arg(argv[7]);
+//             if (!arg.empty()) {
+//                 block_size = std::stoi(arg);
+//             }
+//         } catch (const std::exception& e) {
+//             std::cerr << "Invalid block size parameter: " << argv[7] << std::endl;
+//             return 1;
+//         }
+//     }
 
-    // Print parameters for verification
-    std::cout << "\nUsing parameters:" << std::endl;
-    std::cout << "  Compressor: " << compressor_setting << std::endl;
-    std::cout << "  Window size: " << window_size << std::endl;
-    std::cout << "  Log length: " << log_length << std::endl;
-    std::cout << "  Threshold: " << threshold << std::endl;
-    std::cout << "  Block size: " << block_size << std::endl;
+//     // Print parameters for verification
+//     std::cout << "\nUsing parameters:" << std::endl;
+//     std::cout << "  Compressor: " << compressor_setting << std::endl;
+//     std::cout << "  Window size: " << window_size << std::endl;
+//     std::cout << "  Log length: " << log_length << std::endl;
+//     std::cout << "  Threshold: " << threshold << std::endl;
+//     std::cout << "  Block size: " << block_size << std::endl;
 
-    try {
-        double time_cost = main_encoding_compress(
-            input_path, 
-            output_path, 
-            window_size, 
-            log_length, 
-            threshold, 
-            block_size,
-            compressor
-        );
+//     try {
+//         double time_cost = main_encoding_compress(
+//             input_path, 
+//             output_path, 
+//             window_size, 
+//             log_length, 
+//             threshold, 
+//             block_size,
+//             compressor
+//         );
         
-        std::cout << "Compression completed in " << time_cost << " seconds." << std::endl;
-        return 0;
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return 1;
-    }
-}
+//         std::cout << "Compression completed in " << time_cost << " seconds." << std::endl;
+//         return 0;
+//     } catch (const std::exception& e) {
+//         std::cerr << "Error: " << e.what() << std::endl;
+//         return 1;
+//     }
+// }

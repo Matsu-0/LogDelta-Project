@@ -22,7 +22,7 @@ void byteArrayEncoding(const std::vector<Record>& records,
                       const std::string& output_path, 
                       CompressorType compressor = CompressorType::NONE);
 
-double main_encoding_compress(const std::string& input_path, 
+double main_encoding_compress_approx(const std::string& input_path, 
                             const std::string& output_path, 
                             int window_size = 8,
                             int log_length = 256,
