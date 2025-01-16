@@ -8,10 +8,10 @@
 #include "utils.hpp"
 #include "distance.hpp"
 
-// 定义数据集名称
+// Define dataset names
 const std::vector<std::string> datasets = {"Android", "Apache", "HPC", "Mac", "OpenStack", "Spark", "Zookeeper", "SSH", "Linux", "Proxifier", "Thunderbird"};
 
-// 添加距离函数类型的定义
+// Define distance function types
 const std::vector<std::pair<std::string, DistanceType>> distance_functions = {
     {"COSINE", DistanceType::COSINE},
     {"MINHASH", DistanceType::MINHASH},
@@ -19,13 +19,13 @@ const std::vector<std::pair<std::string, DistanceType>> distance_functions = {
 };
 
 void approx_encoding() {
-    // 定义参数范围 (0.0 到 1.0，步长0.02)
+    // Define parameter range (0.0 to 1.0, step 0.02)
     std::vector<double> parameters;
     for (double p = 0.0; p <= 1.0; p += 0.02) {
         parameters.push_back(p);
     }
 
-    // 为每种距离函数创建结果目录
+    // Create result directories for each distance function
     for (const auto& [dist_name, _] : distance_functions) {
         std::string output_path = "../result/result_approx/test3_distance/" + dist_name + "/";
         if (!ensure_directory_exists(output_path)) {
@@ -34,14 +34,14 @@ void approx_encoding() {
         }
     }
 
-    // 对每种距离函数进行测试
+    // Test each distance function
     for (const auto& [dist_name, dist_type] : distance_functions) {
         std::cout << "\n=== Testing distance function: " << dist_name << " ===" << std::endl;
         
         std::string output_path = "../result/result_approx/test3_distance/" + dist_name + "/";
         std::map<std::string, std::vector<double>> time_sets;
 
-        // 计算总任务数
+        // Calculate total tasks
         size_t total_tasks = datasets.size() * parameters.size();
         size_t current_task = 0;
 
@@ -62,7 +62,7 @@ void approx_encoding() {
                           << "Dataset: " << d << ", Distance threshold: " << p 
                           << ", Function: " << dist_name << std::endl;
 
-                std::string input_file_name = "../datasets/test_dataset/" + d + ".log";
+                std::string input_file_name = "../datasets/test1_data_size/" + d + "_20000.txt";
                 std::string output_file_name = output_path + d + "/" + d + "_" + std::to_string(p);
                 
                 if (!std::ifstream(input_file_name)) {
@@ -85,7 +85,7 @@ void approx_encoding() {
             time_sets[d] = time_list;
         }
 
-        // 写入结果到CSV文件
+        // Write results to CSV file
         std::string csv_path = output_path + "time_cost.csv";
         std::vector<std::string> first_column;
         first_column.push_back("Distance");

@@ -7,11 +7,11 @@
 #include "record_compress.hpp"
 #include "utils.hpp"
 
-// 定义数据集名称
+// Define dataset names
 const std::vector<std::string> datasets = {"Android", "Apache", "HPC", "Mac", "OpenStack", "Spark", "Zookeeper", "SSH", "Linux", "Proxifier", "Thunderbird"};
 
 void approx_encoding() {
-    // 定义参数范围
+    // Define parameter range
     std::vector<int> parameters;
     for (int p = 1000; p < 20500; p += 500) {
         parameters.push_back(p);
@@ -20,16 +20,16 @@ void approx_encoding() {
     std::string input_path = "../datasets/test1_data_size/";
     std::string output_path = "../result/result_approx/test1_data_size/";
 
-    // 确保输出目录存在
+    // Ensure output directory exists
     if (!ensure_directory_exists(output_path)) {
         std::cerr << "Failed to create output directory: " << output_path << std::endl;
         return;
     }
 
-    // 存储每个数据集的时间结果
+    // Store time results for each dataset
     std::map<std::string, std::vector<double>> time_sets;
 
-    // 计算总任务数用于显示进度
+    // Calculate total tasks for progress display
     size_t total_tasks = datasets.size() * parameters.size();
     size_t current_task = 0;
 
@@ -72,10 +72,10 @@ void approx_encoding() {
         time_sets[d] = time_list;
     }
 
-    // 写入结果到CSV文件
+    // Write results to CSV file
     std::string csv_path = output_path + "time_cost.csv";
     std::vector<std::string> first_column;
-    first_column.push_back("Parameter");  // 表头
+    first_column.push_back("Parameter");  // Header
     for (int p : parameters) {
         first_column.push_back(std::to_string(p));
     }

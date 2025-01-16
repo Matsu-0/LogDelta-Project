@@ -424,144 +424,146 @@ double main_encoding_compress(const std::string& input_path,
     return total_time + comp_time;
 }
 
-// int main(int argc, char* argv[]) {
-//     if (argc < 3) {
-//         std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size] [distance] [use_approx]" << std::endl;
-//         std::cerr << "Compressor options: none, lzma, gzip, zstd" << std::endl;
-//         std::cerr << "Distance options: cosine, minhash, qgram" << std::endl;
-//         std::cerr << "Use approx options: true, false (default: true)" << std::endl;
-//         return 1;
-//     }
+/*
+int main(int argc, char* argv[]) {
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size] [distance] [use_approx]" << std::endl;
+        std::cerr << "Compressor options: none, lzma, gzip, zstd" << std::endl;
+        std::cerr << "Distance options: cosine, minhash, qgram" << std::endl;
+        std::cerr << "Use approx options: true, false (default: true)" << std::endl;
+        return 1;
+    }
 
-//     std::string input_path = argv[1];
-//     std::string output_path = argv[2];
+    std::string input_path = argv[1];
+    std::string output_path = argv[2];
     
-//     // Default parameters
-//     std::string compressor_setting = "none";
-//     int window_size = 8;
-//     int log_length = 256;
-//     double threshold = 0.06;
-//     int block_size = 32768;
-//     std::string distance_setting = "minhash";
+    // Default parameters
+    std::string compressor_setting = "none";
+    int window_size = 8;
+    int log_length = 256;
+    double threshold = 0.06;
+    int block_size = 32768;
+    std::string distance_setting = "minhash";
 
-//     CompressorType compressor = CompressorType::NONE;
-//     DistanceType distance = DistanceType::MINHASH;
+    CompressorType compressor = CompressorType::NONE;
+    DistanceType distance = DistanceType::MINHASH;
 
-//     // Optional parameters with bounds checking
-//     if (argc > 3 && argv[3] != nullptr) {
-//         compressor_setting = argv[3];
-//     }
+    // Optional parameters with bounds checking
+    if (argc > 3 && argv[3] != nullptr) {
+        compressor_setting = argv[3];
+    }
     
-//     // Set compressor type
-//     if (compressor_setting == "lzma") {
-//         compressor = CompressorType::LZMA;
-//     } else if (compressor_setting == "gzip") {
-//         compressor = CompressorType::GZIP;
-//     } else if (compressor_setting == "zstd") {
-//         compressor = CompressorType::ZSTD;
-//     } else {
-//         compressor = CompressorType::NONE;
-//     }
+    // Set compressor type
+    if (compressor_setting == "lzma") {
+        compressor = CompressorType::LZMA;
+    } else if (compressor_setting == "gzip") {
+        compressor = CompressorType::GZIP;
+    } else if (compressor_setting == "zstd") {
+        compressor = CompressorType::ZSTD;
+    } else {
+        compressor = CompressorType::NONE;
+    }
 
-//     // Parse numeric parameters
-//     if (argc > 4 && argv[4] != nullptr) {
-//         try {
-//             std::string arg(argv[4]);
-//             if (!arg.empty()) {
-//                 window_size = std::stoi(arg);
-//             }
-//         } catch (const std::exception& e) {
-//             std::cerr << "Invalid window size parameter: " << argv[4] << std::endl;
-//             return 1;
-//         }
-//     }
+    // Parse numeric parameters
+    if (argc > 4 && argv[4] != nullptr) {
+        try {
+            std::string arg(argv[4]);
+            if (!arg.empty()) {
+                window_size = std::stoi(arg);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Invalid window size parameter: " << argv[4] << std::endl;
+            return 1;
+        }
+    }
     
-//     if (argc > 5 && argv[5] != nullptr) {
-//         try {
-//             std::string arg(argv[5]);
-//             if (!arg.empty()) {
-//                 log_length = std::stoi(arg);
-//             }
-//         } catch (const std::exception& e) {
-//             std::cerr << "Invalid log length parameter: " << argv[5] << std::endl;
-//             return 1;
-//         }
-//     }
+    if (argc > 5 && argv[5] != nullptr) {
+        try {
+            std::string arg(argv[5]);
+            if (!arg.empty()) {
+                log_length = std::stoi(arg);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Invalid log length parameter: " << argv[5] << std::endl;
+            return 1;
+        }
+    }
     
-//     if (argc > 6 && argv[6] != nullptr) {
-//         try {
-//             std::string arg(argv[6]);
-//             if (!arg.empty()) {
-//                 threshold = std::stod(arg);
-//             }
-//         } catch (const std::exception& e) {
-//             std::cerr << "Invalid threshold parameter: " << argv[6] << std::endl;
-//             return 1;
-//         }
-//     }
+    if (argc > 6 && argv[6] != nullptr) {
+        try {
+            std::string arg(argv[6]);
+            if (!arg.empty()) {
+                threshold = std::stod(arg);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Invalid threshold parameter: " << argv[6] << std::endl;
+            return 1;
+        }
+    }
     
-//     if (argc > 7 && argv[7] != nullptr) {
-//         try {
-//             std::string arg(argv[7]);
-//             if (!arg.empty()) {
-//                 block_size = std::stoi(arg);
-//             }
-//         } catch (const std::exception& e) {
-//             std::cerr << "Invalid block size parameter: " << argv[7] << std::endl;
-//             return 1;
-//         }
-//     }
+    if (argc > 7 && argv[7] != nullptr) {
+        try {
+            std::string arg(argv[7]);
+            if (!arg.empty()) {
+                block_size = std::stoi(arg);
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Invalid block size parameter: " << argv[7] << std::endl;
+            return 1;
+        }
+    }
 
-//     // Parse distance function parameter
-//     if (argc > 8 && argv[8] != nullptr) {
-//         distance_setting = argv[8];
-//     }
+    // Parse distance function parameter
+    if (argc > 8 && argv[8] != nullptr) {
+        distance_setting = argv[8];
+    }
 
-//     // Set distance type
-//     if (distance_setting == "cosine") {
-//         distance = DistanceType::COSINE;
-//     } else if (distance_setting == "qgram") {
-//         distance = DistanceType::QGRAM;
-//     } else {
-//         distance = DistanceType::MINHASH;  // default
-//     }
+    // Set distance type
+    if (distance_setting == "cosine") {
+        distance = DistanceType::COSINE;
+    } else if (distance_setting == "qgram") {
+        distance = DistanceType::QGRAM;
+    } else {
+        distance = DistanceType::MINHASH;  // default
+    }
 
-//     // 添加use_approx参数
-//     bool use_approx = true;  // 默认为true
-//     if (argc > 9 && argv[9] != nullptr) {
-//         std::string approx_setting = argv[9];
-//         if (approx_setting == "false") {
-//             use_approx = false;
-//         }
-//     }
+    // 添加use_approx参数
+    bool use_approx = true;  // 默认为true
+    if (argc > 9 && argv[9] != nullptr) {
+        std::string approx_setting = argv[9];
+        if (approx_setting == "false") {
+            use_approx = false;
+        }
+    }
 
-//     // Print parameters for verification
-//     std::cout << "\nUsing parameters:" << std::endl;
-//     std::cout << "  Compressor: " << compressor_setting << std::endl;
-//     std::cout << "  Window size: " << window_size << std::endl;
-//     std::cout << "  Log length: " << log_length << std::endl;
-//     std::cout << "  Threshold: " << threshold << std::endl;
-//     std::cout << "  Block size: " << block_size << std::endl;
-//     std::cout << "  Distance function: " << distance_setting << std::endl;
-//     std::cout << "  Use approximation: " << (use_approx ? "true" : "false") << std::endl;
+    // Print parameters for verification
+    std::cout << "\nUsing parameters:" << std::endl;
+    std::cout << "  Compressor: " << compressor_setting << std::endl;
+    std::cout << "  Window size: " << window_size << std::endl;
+    std::cout << "  Log length: " << log_length << std::endl;
+    std::cout << "  Threshold: " << threshold << std::endl;
+    std::cout << "  Block size: " << block_size << std::endl;
+    std::cout << "  Distance function: " << distance_setting << std::endl;
+    std::cout << "  Use approximation: " << (use_approx ? "true" : "false") << std::endl;
 
-//     try {
-//         double time_cost = main_encoding_compress(
-//             input_path, 
-//             output_path, 
-//             window_size, 
-//             log_length, 
-//             threshold, 
-//             block_size,
-//             compressor,
-//             distance,
-//             use_approx
-//         );
+    try {
+        double time_cost = main_encoding_compress(
+            input_path, 
+            output_path, 
+            window_size, 
+            log_length, 
+            threshold, 
+            block_size,
+            compressor,
+            distance,
+            use_approx
+        );
         
-//         std::cout << "Compression completed in " << time_cost << " seconds." << std::endl;
-//         return 0;
-//     } catch (const std::exception& e) {
-//         std::cerr << "Error: " << e.what() << std::endl;
-//         return 1;
-//     }
-// }
+        std::cout << "Compression completed in " << time_cost << " seconds." << std::endl;
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
+}
+*/

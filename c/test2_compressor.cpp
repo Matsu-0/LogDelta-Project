@@ -7,7 +7,7 @@
 #include "record_compress.hpp"
 #include "utils.hpp"
 
-// 定义数据集名称和压缩器类型
+// Define dataset names and compressor types
 const std::vector<std::string> datasets = {"Android", "Apache", "HPC", "Mac", "OpenStack", "Spark", "Zookeeper", "SSH", "Linux", "Proxifier", "Thunderbird"};
 const std::vector<std::pair<std::string, CompressorType>> compressors = {
     {"NONE", CompressorType::NONE},
@@ -20,16 +20,16 @@ void approx_encoding() {
     std::string input_path = "../datasets/test_dataset/";
     std::string output_path = "../result/result_approx/test2_compressor/";
 
-    // 确保输出目录存在
+    // Ensure output directory exists
     if (!ensure_directory_exists(output_path)) {
         std::cerr << "Failed to create output directory: " << output_path << std::endl;
         return;
     }
 
-    // 存储每个数据集的时间结果
+    // Store time results for each dataset
     std::map<std::string, std::vector<double>> time_sets;
 
-    // 计算总任务数用于显示进度
+    // Calculate total tasks for progress display
     size_t total_tasks = datasets.size() * compressors.size();
     size_t current_task = 0;
 
@@ -57,6 +57,7 @@ void approx_encoding() {
                 continue;
             }
             
+            // Test different compressors with default parameters
             double time = main_encoding_compress(input_file_name, output_file_name,
                                                 DefaultParams::WINDOW_SIZE,
                                                 DefaultParams::LOG_LENGTH,
@@ -72,10 +73,10 @@ void approx_encoding() {
         time_sets[d] = time_list;
     }
 
-    // 写入结果到CSV文件
+    // Write results to CSV file
     std::string csv_path = output_path + "time_cost.csv";
     std::vector<std::string> first_column;
-    first_column.push_back("Compressor");  // 表头
+    first_column.push_back("Compressor");  // Header
     for (const auto& [name, _] : compressors) {
         first_column.push_back(name);
     }

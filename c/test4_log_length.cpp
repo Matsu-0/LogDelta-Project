@@ -7,11 +7,11 @@
 #include "record_compress.hpp"
 #include "utils.hpp"
 
-// 定义数据集名称
+// Define dataset names
 const std::vector<std::string> datasets = {"Android", "Apache", "HPC", "Mac", "OpenStack", "Spark", "Zookeeper", "SSH", "Linux", "Proxifier", "Thunderbird"};
 
 void approx_encoding() {
-    // 定义参数范围 (2的幂次: 16, 32, 64, 128, 256, 512, 1024)
+    // Define parameter range (powers of 2: 16, 32, 64, 128, 256, 512, 1024)
     std::vector<int> parameters;
     for (int p = 16; p <= 1024; p *= 2) {
         parameters.push_back(p);
@@ -20,16 +20,16 @@ void approx_encoding() {
     std::string input_path = "../datasets/test_dataset/";
     std::string output_path = "../result/result_approx/test4_log_length/";
 
-    // 确保输出目录存在
+    // Ensure output directory exists
     if (!ensure_directory_exists(output_path)) {
         std::cerr << "Failed to create output directory: " << output_path << std::endl;
         return;
     }
 
-    // 存储每个数据集的时间结果
+    // Store time results for each dataset
     std::map<std::string, std::vector<double>> time_sets;
 
-    // 计算总任务数用于显示进度
+    // Calculate total tasks for progress display
     size_t total_tasks = datasets.size() * parameters.size();
     size_t current_task = 0;
 
@@ -57,7 +57,7 @@ void approx_encoding() {
                 continue;
             }
             
-            // 使用固定的window_size=8, threshold=0.06, block_size=32768，只改变log_length
+            // Use fixed window_size=8, threshold=0.06, block_size=32768, only change log_length
             double time = main_encoding_compress(input_file_name, output_file_name,
                                                DefaultParams::WINDOW_SIZE,
                                                p,
@@ -73,10 +73,10 @@ void approx_encoding() {
         time_sets[d] = time_list;
     }
 
-    // 写入结果到CSV文件
+    // Write results to CSV file
     std::string csv_path = output_path + "time_cost.csv";
     std::vector<std::string> first_column;
-    first_column.push_back("LogLength");  // 表头
+    first_column.push_back("LogLength");  // Header
     for (int p : parameters) {
         first_column.push_back(std::to_string(p));
     }

@@ -25,8 +25,8 @@ std::pair<std::vector<OperationItem>, double> getQgramMatchOplist(
     int k = 3
 );
 
-// Recover original string using operation list
-std::string recoverString(
+// Recover string using Q-gram operation list
+std::string recoverQgramString(
     const std::vector<OperationItem>& operationList, 
     const std::string& str1
 );

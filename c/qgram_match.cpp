@@ -176,7 +176,9 @@ std::pair<std::vector<OperationItem>, double> getQgramMatchOplist(
     return {operationList, distance};
 }
 
-std::string recoverString(const std::vector<OperationItem>& operationList, const std::string& str1) {
+std::string recoverQgramString(
+    const std::vector<OperationItem>& operationList,
+    const std::string& str1) {
     std::string result;
     size_t oldPos = 0;
     
@@ -203,7 +205,7 @@ int main() {
     }
     double distance = result.second;
     
-    std::string recovered = recoverString(operationList, str1);
+    std::string recovered = recoverQgramString(operationList, str1);
     
     std::cout << "Distance: " << distance << std::endl;
     std::cout << "Original : " << str2 << std::endl;
