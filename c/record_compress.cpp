@@ -236,10 +236,21 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
     stream.write(output_path, "ab", compressor);
 }
 
-double main_encoding_compress_approx(const std::string& input_path, const std::string& output_path, 
-                            int window_size, int log_length,
-                            double threshold, int block_size, 
-                            CompressorType compressor) {
+double main_encoding_compress_exact(const std::string& input_path, 
+                                   const std::string& output_path,
+                                   int window_size, int log_length,
+                                   double threshold, int block_size,
+                                   CompressorType compressor,
+                                   DistanceType distance) {
+
+}
+
+double main_encoding_compress_approx(const std::string& input_path, 
+                                   const std::string& output_path,
+                                   int window_size, int log_length,
+                                   double threshold, int block_size,
+                                   CompressorType compressor,
+                                   DistanceType distance) {
     auto total_start_time = std::chrono::high_resolution_clock::now();
     
     // Add counters
@@ -306,43 +317,23 @@ double main_encoding_compress_approx(const std::string& input_path, const std::s
             auto distance_start = std::chrono::high_resolution_clock::now();
 
             // Calculate distances: cosine distance
-            double min_distance = 1.0;
+            double min_distance = (distance == DistanceType::QGRAM) ? line.length() : 1.0;
             for (int i = 0; i < q.size(); i++) {
-                double tmp_dist = Distance::qgramCosineDistance(q[i], line);
+                double tmp_dist = Distance::calculateDistance(q[i], line, distance);
                 if (tmp_dist < min_distance) {
                     min_distance = tmp_dist;
                     begin = i;
                 }
             }
-            if (min_distance >= threshold) {
+            
+            // 根据不同距离函数类型判断阈值
+            bool exceed_threshold = (distance == DistanceType::QGRAM) 
+                ? (min_distance >= line.length()) 
+                : (min_distance >= threshold);
+            
+            if (exceed_threshold) {
                 begin = -1;
             }
-
-            // // Calculate distances: minhash distance
-            // double min_distance = 1.0;
-            // for (int i = 0; i < q.size(); i++) {
-            //     double tmp_dist = Distance::minHashDistance(q[i], line);
-            //     if (tmp_dist < min_distance) {
-            //         min_distance = tmp_dist;
-            //         begin = i;
-            //     }
-            // }
-            // if (min_distance >= threshold) {
-            //     begin = -1;
-            // }
-
-            // // Calculate distances: qgram match
-            // double min_distance = line.length();
-            // for (int i = 0; i < q.size(); i++) {
-            //     auto [tmp_list, tmp_distance] = getQgramMatchOplist(q[i], line, 3);
-            //     if (tmp_distance < min_distance) {
-            //         min_distance = tmp_distance;
-            //         begin = i;
-            //     }
-            // }
-            // if (min_distance >= line.length()) {
-            //     begin = -1;
-            // }
 
             auto distance_end = std::chrono::high_resolution_clock::now();
             distance_time += std::chrono::duration<double>(distance_end - distance_start).count();
@@ -435,8 +426,9 @@ double main_encoding_compress_approx(const std::string& input_path, const std::s
 
 // int main(int argc, char* argv[]) {
 //     if (argc < 3) {
-//         std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size]" << std::endl;
+//         std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size] [distance]" << std::endl;
 //         std::cerr << "Compressor options: none, lzma, gzip, zstd" << std::endl;
+//         std::cerr << "Distance options: cosine, minhash, qgram" << std::endl;
 //         return 1;
 //     }
 
@@ -449,14 +441,10 @@ double main_encoding_compress_approx(const std::string& input_path, const std::s
 //     int log_length = 256;
 //     double threshold = 0.06;
 //     int block_size = 32768;
+//     std::string distance_setting = "minhash";
 
 //     CompressorType compressor = CompressorType::NONE;
-
-//     // // Print received arguments for debugging
-//     // std::cout << "Received arguments:" << std::endl;
-//     // for (int i = 0; i < argc; i++) {
-//     //     std::cout << "  argv[" << i << "]: " << argv[i] << std::endl;
-//     // }
+//     DistanceType distance = DistanceType::MINHASH;
 
 //     // Optional parameters with bounds checking
 //     if (argc > 3 && argv[3] != nullptr) {
@@ -523,6 +511,20 @@ double main_encoding_compress_approx(const std::string& input_path, const std::s
 //         }
 //     }
 
+//     // Parse distance function parameter
+//     if (argc > 8 && argv[8] != nullptr) {
+//         distance_setting = argv[8];
+//     }
+
+//     // Set distance type
+//     if (distance_setting == "cosine") {
+//         distance = DistanceType::COSINE;
+//     } else if (distance_setting == "qgram") {
+//         distance = DistanceType::QGRAM;
+//     } else {
+//         distance = DistanceType::MINHASH;  // default
+//     }
+
 //     // Print parameters for verification
 //     std::cout << "\nUsing parameters:" << std::endl;
 //     std::cout << "  Compressor: " << compressor_setting << std::endl;
@@ -530,16 +532,18 @@ double main_encoding_compress_approx(const std::string& input_path, const std::s
 //     std::cout << "  Log length: " << log_length << std::endl;
 //     std::cout << "  Threshold: " << threshold << std::endl;
 //     std::cout << "  Block size: " << block_size << std::endl;
+//     std::cout << "  Distance function: " << distance_setting << std::endl;
 
 //     try {
-//         double time_cost = main_encoding_compress(
+//         double time_cost = main_encoding_compress_approx(
 //             input_path, 
 //             output_path, 
 //             window_size, 
 //             log_length, 
 //             threshold, 
 //             block_size,
-//             compressor
+//             compressor,
+//             distance
 //         );
         
 //         std::cout << "Compression completed in " << time_cost << " seconds." << std::endl;

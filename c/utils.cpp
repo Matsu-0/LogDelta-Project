@@ -1,4 +1,7 @@
 #include "utils.hpp"
+#include <sys/stat.h>
+#include <fstream>
+#include <iostream>
 
 std::vector<unsigned char> stringToBytes(const std::string& binaryString) {
     // Calculate required bytes (rounded up to multiple of 8)
@@ -28,4 +31,76 @@ std::string bytesToString(const std::vector<unsigned char>& bytes) {
     }
     
     return binaryString;
+}
+
+bool create_directory(const std::string& path) {
+    #ifdef _WIN32
+        return _mkdir(path.c_str()) == 0;
+    #else
+        return mkdir(path.c_str(), 0777) == 0;
+    #endif
+}
+
+bool directory_exists(const std::string& path) {
+    struct stat info;
+    if (stat(path.c_str(), &info) != 0) {
+        return false;
+    }
+    return (info.st_mode & S_IFDIR) != 0;
+}
+
+bool ensure_directory_exists(const std::string& path) {
+    size_t pos = 0;
+    std::string dir;
+    while ((pos = path.find('/', pos)) != std::string::npos) {
+        dir = path.substr(0, pos++);
+        if (dir.empty()) continue;
+        if (!directory_exists(dir)) {
+            if (!create_directory(dir)) {
+                std::cerr << "Failed to create directory: " << dir << std::endl;
+                return false;
+            }
+        }
+    }
+    if (!directory_exists(path)) {
+        return create_directory(path);
+    }
+    return true;
+}
+
+bool write_csv(const std::string& filepath,
+              const std::map<std::string, std::vector<double>>& time_sets,
+              const std::vector<std::string>& column_names,
+              const std::vector<std::string>& first_column_values) {
+    // 确保目录存在
+    std::string dir = filepath.substr(0, filepath.find_last_of('/'));
+    if (!ensure_directory_exists(dir)) {
+        std::cerr << "Failed to create directory for CSV file: " << dir << std::endl;
+        return false;
+    }
+
+    std::ofstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open file for writing: " << filepath << std::endl;
+        return false;
+    }
+    
+    // 写入表头
+    file << first_column_values[0];  // 第一列的表头
+    for (const auto& col : column_names) {
+        file << "," << col;
+    }
+    file << "\n";
+    
+    // 写入数据
+    for (size_t i = 1; i < first_column_values.size(); ++i) {
+        file << first_column_values[i];
+        for (const auto& col : column_names) {
+            file << "," << time_sets.at(col)[i-1];
+        }
+        file << "\n";
+    }
+
+    file.close();
+    return true;
 }

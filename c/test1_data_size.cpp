@@ -3,88 +3,12 @@
 #include <vector>
 #include <string>
 #include <map>
-#include <sys/stat.h>
 #include <chrono>
 #include "record_compress.hpp"
 #include "utils.hpp"
 
 // 定义数据集名称
-const std::vector<std::string> datasets = {"Apache", "Linux", "Proxifier", "Thunderbird"};
-
-// 创建目录的辅助函数，返回是否成功
-bool create_directory(const std::string& path) {
-    #ifdef _WIN32
-        return _mkdir(path.c_str()) == 0;
-    #else
-        return mkdir(path.c_str(), 0777) == 0;
-    #endif
-}
-
-// 检查目录是否存在
-bool directory_exists(const std::string& path) {
-    struct stat info;
-    if (stat(path.c_str(), &info) != 0) {
-        return false;
-    }
-    return (info.st_mode & S_IFDIR) != 0;
-}
-
-// 确保目录存在，如果需要则创建完整的目录路径
-bool ensure_directory_exists(const std::string& path) {
-    size_t pos = 0;
-    std::string dir;
-    while ((pos = path.find('/', pos)) != std::string::npos) {
-        dir = path.substr(0, pos++);
-        if (dir.empty()) continue;
-        if (!directory_exists(dir)) {
-            if (!create_directory(dir)) {
-                std::cerr << "Failed to create directory: " << dir << std::endl;
-                return false;
-            }
-        }
-    }
-    if (!directory_exists(path)) {
-        return create_directory(path);
-    }
-    return true;
-}
-
-// 写入CSV文件的辅助函数
-bool write_csv(const std::string& filepath, 
-              const std::map<std::string, std::vector<double>>& time_sets,
-              const std::vector<int>& parameters) {
-    // 确保目录存在
-    std::string dir = filepath.substr(0, filepath.find_last_of('/'));
-    if (!ensure_directory_exists(dir)) {
-        std::cerr << "Failed to create directory for CSV file: " << dir << std::endl;
-        return false;
-    }
-
-    std::ofstream file(filepath);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open file for writing: " << filepath << std::endl;
-        return false;
-    }
-    
-    // 写入表头
-    for (size_t i = 0; i < datasets.size(); ++i) {
-        file << datasets[i];
-        if (i < datasets.size() - 1) file << ",";
-    }
-    file << "\n";
-    
-    // 写入数据
-    for (size_t i = 0; i < parameters.size(); ++i) {
-        for (size_t j = 0; j < datasets.size(); ++j) {
-            file << time_sets.at(datasets[j])[i];
-            if (j < datasets.size() - 1) file << ",";
-        }
-        file << "\n";
-    }
-
-    file.close();
-    return true;
-}
+const std::vector<std::string> datasets = {"Android", "Apache", "HPC", "Mac", "OpenStack", "Spark", "Zookeeper", "SSH", "Linux", "Proxifier", "Thunderbird"};
 
 void approx_encoding() {
     // 定义参数范围
@@ -143,7 +67,13 @@ void approx_encoding() {
 
     // 写入结果到CSV文件
     std::string csv_path = output_path + "time_cost.csv";
-    if (write_csv(csv_path, time_sets, parameters)) {
+    std::vector<std::string> first_column;
+    first_column.push_back("Parameter");  // 表头
+    for (int p : parameters) {
+        first_column.push_back(std::to_string(p));
+    }
+
+    if (write_csv(csv_path, time_sets, datasets, first_column)) {
         std::cout << "\nAll tasks completed. Results written to: " << csv_path << std::endl;
     } else {
         std::cerr << "\nFailed to write results to: " << csv_path << std::endl;

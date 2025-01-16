@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include "qgram_match.hpp"
 
 class MinHash {
 public:
@@ -30,6 +31,13 @@ private:
     std::unordered_map<std::string, std::vector<uint64_t>> signature_cache_;
 };
 
+// 添加距离函数类型的枚举
+enum class DistanceType {
+    COSINE,     // Q-gram cosine distance
+    MINHASH,    // MinHash distance
+    QGRAM       // Q-gram match distance
+};
+
 class Distance {
 public:
     // Generate q-gram vector for a string
@@ -38,6 +46,10 @@ public:
     // Calculate distances between two strings
     static double qgramCosineDistance(const std::string& str1, const std::string& str2, int q = 3);
     static double minHashDistance(const std::string& str1, const std::string& str2, int k = 3, int numHashes = 50);
+    
+    // 添加通用的距离计算函数
+    static double calculateDistance(const std::string& str1, const std::string& str2, 
+                                  DistanceType distance_type);
 };
 
 #endif // DISTANCE_HPP
