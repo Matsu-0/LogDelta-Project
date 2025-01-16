@@ -57,7 +57,14 @@ void approx_encoding() {
                 continue;
             }
             
-            double time = main_encoding_compress_approx(input_file_name, output_file_name);
+            double time = main_encoding_compress(input_file_name, output_file_name, 
+                                                 DefaultParams::WINDOW_SIZE,
+                                                 DefaultParams::LOG_LENGTH,
+                                                 DefaultParams::THRESHOLD,
+                                                 p,
+                                                 DefaultParams::COMPRESSOR,
+                                                 DefaultParams::DISTANCE,
+                                                 DefaultParams::USE_APPROX);
             time_list.push_back(time);
             
             std::cout << "Time cost: " << time << " seconds" << std::endl;

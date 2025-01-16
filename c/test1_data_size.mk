@@ -22,6 +22,7 @@ SRCS = test1_data_size.cpp \
        bit_packing.cpp \
        distance.cpp \
        qgram_match.cpp \
+       variable_length_substitution.cpp \
        utils.cpp \
        rle.cpp
 

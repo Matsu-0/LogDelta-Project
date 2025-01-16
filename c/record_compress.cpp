@@ -5,6 +5,7 @@
 #include "bit_packing.hpp"
 #include "qgram_match.hpp"
 #include "record_compress.hpp"
+#include "variable_length_substitution.hpp"
 #include <chrono>
 #include <deque>
 #include <fstream>
@@ -236,21 +237,13 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
     stream.write(output_path, "ab", compressor);
 }
 
-double main_encoding_compress_exact(const std::string& input_path, 
+double main_encoding_compress(const std::string& input_path, 
                                    const std::string& output_path,
                                    int window_size, int log_length,
                                    double threshold, int block_size,
                                    CompressorType compressor,
-                                   DistanceType distance) {
-
-}
-
-double main_encoding_compress_approx(const std::string& input_path, 
-                                   const std::string& output_path,
-                                   int window_size, int log_length,
-                                   double threshold, int block_size,
-                                   CompressorType compressor,
-                                   DistanceType distance) {
+                                   DistanceType distance,
+                                   bool use_approx) {
     auto total_start_time = std::chrono::high_resolution_clock::now();
     
     // Add counters
@@ -311,7 +304,7 @@ double main_encoding_compress_approx(const std::string& input_path,
 
         // Process each line
         for (const auto& line : line_list) {
-            total_lines++;  // Increment total lines counter
+            total_lines++;
             int begin = -1;
 
             auto distance_start = std::chrono::high_resolution_clock::now();
@@ -326,7 +319,6 @@ double main_encoding_compress_approx(const std::string& input_path,
                 }
             }
             
-            // 根据不同距离函数类型判断阈值
             bool exceed_threshold = (distance == DistanceType::QGRAM) 
                 ? (min_distance >= line.length()) 
                 : (min_distance >= threshold);
@@ -348,8 +340,16 @@ double main_encoding_compress_approx(const std::string& input_path,
                 records.push_back(record);
             } else {
                 matched_lines++;
-                // Get Q-gram match operations
-                auto [op_list, new_distance] = getQgramMatchOplist(q[begin], line, 3);
+                // Choose matching algorithm based on use_approx parameter
+                std::vector<OperationItem> op_list;
+                double new_distance;
+                if (use_approx) {
+                    // Use approximate algorithm
+                    std::tie(op_list, new_distance) = getQgramMatchOplist(q[begin], line, 3);
+                } else {
+                    // Use exact algorithm
+                    std::tie(op_list, new_distance) = getSubstitutionOplist(q[begin], line);
+                }
                 
                 if (new_distance > line.length()) {
                     Record record;
@@ -426,9 +426,10 @@ double main_encoding_compress_approx(const std::string& input_path,
 
 // int main(int argc, char* argv[]) {
 //     if (argc < 3) {
-//         std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size] [distance]" << std::endl;
+//         std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size] [distance] [use_approx]" << std::endl;
 //         std::cerr << "Compressor options: none, lzma, gzip, zstd" << std::endl;
 //         std::cerr << "Distance options: cosine, minhash, qgram" << std::endl;
+//         std::cerr << "Use approx options: true, false (default: true)" << std::endl;
 //         return 1;
 //     }
 
@@ -525,6 +526,15 @@ double main_encoding_compress_approx(const std::string& input_path,
 //         distance = DistanceType::MINHASH;  // default
 //     }
 
+//     // 添加use_approx参数
+//     bool use_approx = true;  // 默认为true
+//     if (argc > 9 && argv[9] != nullptr) {
+//         std::string approx_setting = argv[9];
+//         if (approx_setting == "false") {
+//             use_approx = false;
+//         }
+//     }
+
 //     // Print parameters for verification
 //     std::cout << "\nUsing parameters:" << std::endl;
 //     std::cout << "  Compressor: " << compressor_setting << std::endl;
@@ -533,9 +543,10 @@ double main_encoding_compress_approx(const std::string& input_path,
 //     std::cout << "  Threshold: " << threshold << std::endl;
 //     std::cout << "  Block size: " << block_size << std::endl;
 //     std::cout << "  Distance function: " << distance_setting << std::endl;
+//     std::cout << "  Use approximation: " << (use_approx ? "true" : "false") << std::endl;
 
 //     try {
-//         double time_cost = main_encoding_compress_approx(
+//         double time_cost = main_encoding_compress(
 //             input_path, 
 //             output_path, 
 //             window_size, 
@@ -543,7 +554,8 @@ double main_encoding_compress_approx(const std::string& input_path,
 //             threshold, 
 //             block_size,
 //             compressor,
-//             distance
+//             distance,
+//             use_approx
 //         );
         
 //         std::cout << "Compression completed in " << time_cost << " seconds." << std::endl;

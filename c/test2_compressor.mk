@@ -10,13 +10,13 @@ ifeq ($(UNAME_M),arm64)
 endif
 
 # 目标文件
-TARGET = test4_log_length
+TARGET = test2_compressor
 
 # 源文件路径
 VPATH = .
 
 # 源文件
-SRCS = test4_log_length.cpp \
+SRCS = test2_compressor.cpp \
        record_compress.cpp \
        bit_buffer.cpp \
        bit_packing.cpp \

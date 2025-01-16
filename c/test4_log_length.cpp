@@ -58,8 +58,14 @@ void approx_encoding() {
             }
             
             // 使用固定的window_size=8, threshold=0.06, block_size=32768，只改变log_length
-            double time = main_encoding_compress_approx(input_file_name, output_file_name, 
-                                                      8, p, 0.06, 32768);
+            double time = main_encoding_compress(input_file_name, output_file_name,
+                                               DefaultParams::WINDOW_SIZE,
+                                               p,
+                                               DefaultParams::THRESHOLD,
+                                               DefaultParams::BLOCK_SIZE,
+                                               DefaultParams::COMPRESSOR,
+                                               DefaultParams::DISTANCE,
+                                               DefaultParams::USE_APPROX);
             time_list.push_back(time);
             
             std::cout << "Time cost: " << time << " seconds" << std::endl;

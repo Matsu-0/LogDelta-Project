@@ -6,10 +6,13 @@
 OperationItem::OperationItem(int pos, int len1, int len2, const std::string& sub)
     : position(pos), length1(len1), length2(len2), substr(sub) {}
 
+// Generate Q-grams with padding
 std::vector<std::string> getQgram(const std::string& str, int k) {
     std::vector<std::string> qgramList;
+    // Add padding characters to handle string boundaries
     std::string paddedStr = std::string(k-1, '$') + str + std::string(k-1, '#');
     
+    // Generate q-grams using sliding window
     for (size_t i = 0; i <= paddedStr.length() - k; ++i) {
         qgramList.push_back(paddedStr.substr(i, k));
     }
