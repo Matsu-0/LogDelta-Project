@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <iostream>  // For testing
 #include <limits>
+#include <tuple>
 
 std::vector<Position> getSearchRange(int x, int y, const std::string& str1, const std::string& str2, int lmax = 3) {
     std::vector<Position> K;  // Store feasible position tuples

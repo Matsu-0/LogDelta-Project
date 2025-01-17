@@ -1,10 +1,10 @@
 #ifndef VARIABLE_LENGTH_SUBSTITUTION_HPP
 #define VARIABLE_LENGTH_SUBSTITUTION_HPP
 
-#include "qgram_match.hpp"
 #include <string>
 #include <vector>
-#include <utility>
+#include <tuple>
+#include "qgram_match.hpp"
 
 // Cost weights for variable length substitution operations
 namespace SubstitutionCost {
