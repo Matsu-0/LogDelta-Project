@@ -12,6 +12,7 @@ namespace DefaultParams {
     const int LOG_LENGTH = 256;
     const double THRESHOLD = 0.06;
     const int BLOCK_SIZE = 32768;
+    const int Q = 3;  // Default Q-gram size
     const CompressorType COMPRESSOR = CompressorType::LZMA;
     const DistanceType DISTANCE = DistanceType::MINHASH;
     const bool USE_APPROX = true;

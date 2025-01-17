@@ -309,27 +309,23 @@ double main_encoding_compress(const std::string& input_path,
 
             auto distance_start = std::chrono::high_resolution_clock::now();
 
-            // Calculate distances: cosine distance
-            double min_distance = (distance == DistanceType::QGRAM) ? line.length() : 1.0;
+            // Calculate distances
+            double min_distance = 1.0;  // Initialize to maximum distance
             for (int i = 0; i < q.size(); i++) {
-                double tmp_dist = Distance::calculateDistance(q[i], line, distance);
+                double tmp_dist = Distance::calculateDistance(q[i], line, distance, DefaultParams::Q);
                 if (tmp_dist < min_distance) {
                     min_distance = tmp_dist;
                     begin = i;
                 }
             }
             
-            bool exceed_threshold = (distance == DistanceType::QGRAM) 
-                ? (min_distance >= line.length()) 
-                : (min_distance >= threshold);
-            
-            if (exceed_threshold) {
+            // Since all distances are now in [0,1], we can use threshold directly
+            if (min_distance >= threshold) {
                 begin = -1;
             }
 
             auto distance_end = std::chrono::high_resolution_clock::now();
             distance_time += std::chrono::duration<double>(distance_end - distance_start).count();
-
 
             auto match_start = std::chrono::high_resolution_clock::now();
             if (begin == -1) {
@@ -344,8 +340,8 @@ double main_encoding_compress(const std::string& input_path,
                 std::vector<OperationItem> op_list;
                 double new_distance;
                 if (use_approx) {
-                    // Use approximate algorithm
-                    std::tie(op_list, new_distance) = getQgramMatchOplist(q[begin], line, 3);
+                    // Use approximate algorithm with default Q
+                    std::tie(op_list, new_distance) = getQgramMatchOplist(q[begin], line, DefaultParams::Q);
                 } else {
                     // Use exact algorithm
                     std::tie(op_list, new_distance) = getSubstitutionOplist(q[begin], line);

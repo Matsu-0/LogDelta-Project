@@ -49,7 +49,7 @@ public:
     
     // 添加通用的距离计算函数
     static double calculateDistance(const std::string& str1, const std::string& str2, 
-                                  DistanceType distance_type);
+                                  DistanceType distance_type, int q = 3);
 };
 
 #endif // DISTANCE_HPP
