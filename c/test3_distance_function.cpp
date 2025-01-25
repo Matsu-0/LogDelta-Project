@@ -18,6 +18,15 @@ const std::vector<std::pair<std::string, DistanceType>> distance_functions = {
     {"QGRAM", DistanceType::QGRAM}
 };
 
+void cleanup_resources(std::map<std::string, std::vector<double>>& time_sets) {
+    // Clean vectors in map
+    for (auto& pair : time_sets) {
+        std::vector<double>().swap(pair.second);
+    }
+    // Clean the map itself
+    std::map<std::string, std::vector<double>>().swap(time_sets);
+}
+
 void approx_encoding() {
     // Define parameter range (0.0 to 1.0, step 0.02)
     std::vector<double> parameters;
@@ -95,7 +104,12 @@ void approx_encoding() {
             first_column.push_back(buffer);
         }
 
-        if (write_csv(csv_path, time_sets, datasets, first_column)) {
+        bool write_success = write_csv(csv_path, time_sets, datasets, first_column);
+        
+        // Clean up resources before exit
+        cleanup_resources(time_sets);
+
+        if (write_success) {
             std::cout << "\nResults for " << dist_name << " written to: " << csv_path << std::endl;
         } else {
             std::cerr << "\nFailed to write results for " << dist_name << " to: " << csv_path << std::endl;
@@ -180,7 +194,12 @@ void exact_encoding() {
             first_column.push_back(buffer);
         }
 
-        if (write_csv(csv_path, time_sets, datasets, first_column)) {
+        bool write_success = write_csv(csv_path, time_sets, datasets, first_column);
+        
+        // Clean up resources before exit
+        cleanup_resources(time_sets);
+
+        if (write_success) {
             std::cout << "\nResults for " << dist_name << " written to: " << csv_path << std::endl;
         } else {
             std::cerr << "\nFailed to write results for " << dist_name << " to: " << csv_path << std::endl;
@@ -190,8 +209,14 @@ void exact_encoding() {
 
 int main() {
     try {
+        std::cout << "\n=== Starting Approximate Encoding ===\n" << std::endl;
         approx_encoding();
+        std::cout << "\n=== Approximate Encoding Completed ===\n" << std::endl;
+        
+        std::cout << "\n=== Starting Exact Encoding ===\n" << std::endl;
         exact_encoding();
+        
+        std::cout << "\n=== All Tasks Completed ===\n" << std::endl;
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

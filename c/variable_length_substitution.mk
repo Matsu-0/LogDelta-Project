@@ -1,6 +1,6 @@
 CXX = clang++
 CXXFLAGS = -std=c++11 -Wall -O0 -g -I/opt/homebrew/include -I.
-LDFLAGS = -L/opt/homebrew/lib -llzma -lz -lzstd
+LDFLAGS = -L/opt/homebrew/lib
 
 # 检测是否为 ARM 架构（M1/M2 芯片）
 UNAME_M := $(shell uname -m)
@@ -10,21 +10,14 @@ ifeq ($(UNAME_M),arm64)
 endif
 
 # 目标文件
-TARGET = test1_data_size
+TARGET = variable_length_substitution
 
 # 源文件路径
 VPATH = .
 
 # 源文件
-SRCS = test1_data_size.cpp \
-       record_compress.cpp \
-       bit_buffer.cpp \
-       bit_packing.cpp \
-       distance.cpp \
-       qgram_match.cpp \
-       variable_length_substitution.cpp \
-       utils.cpp \
-       rle.cpp
+SRCS = variable_length_substitution.cpp \
+       qgram_match.cpp
 
 # 生成的对象文件
 OBJS = $(SRCS:.cpp=.o)
