@@ -1,5 +1,5 @@
 CXX = clang++
-CXXFLAGS = -std=c++11 -Wall -O2 -I/opt/homebrew/include
+CXXFLAGS = -std=c++11 -Wall -O2 -I/opt/homebrew/include -I.
 LDFLAGS = -L/opt/homebrew/lib -llzma -lz -lzstd
 
 # 检测是否为 ARM 架构（M1/M2 芯片）
@@ -9,37 +9,41 @@ ifeq ($(UNAME_M),arm64)
     LDFLAGS := -arch arm64 $(LDFLAGS)
 endif
 
-# Source files
-SRCS = record_compress.cpp \
+# 目标文件
+TARGET = test_dataset
+
+# 源文件路径
+VPATH = .
+
+# 源文件
+SRCS = test_dataset.cpp \
+       record_compress.cpp \
        bit_buffer.cpp \
        bit_packing.cpp \
        distance.cpp \
        qgram_match.cpp \
+       variable_length_substitution.cpp \
        utils.cpp \
-       rle.cpp \
-       variable_length_substitution.cpp
+       rle.cpp
 
-# Object files
+# 生成的对象文件
 OBJS = $(SRCS:.cpp=.o)
 
-# Target executable
-TARGET = record_compress
-
-# Default target
+# 默认目标
 all: $(TARGET)
 
-# Main target
+# 链接规则
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET) $(LDFLAGS)
 	@echo "Cleaning object files..."
 	@rm -f $(OBJS)
 
-# Compile source files to object files
+# 编译规则
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Clean all generated files
+# 清理规则
 clean:
 	rm -f $(OBJS) $(TARGET)
 
-.PHONY: all clean
+.PHONY: all clean 

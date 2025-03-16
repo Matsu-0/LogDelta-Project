@@ -213,10 +213,10 @@ int main() {
         approx_encoding();
         std::cout << "\n=== Approximate Encoding Completed ===\n" << std::endl;
         
-        std::cout << "\n=== Starting Exact Encoding ===\n" << std::endl;
-        exact_encoding();
+        // std::cout << "\n=== Starting Exact Encoding ===\n" << std::endl;
+        // exact_encoding();
         
-        std::cout << "\n=== All Tasks Completed ===\n" << std::endl;
+        // std::cout << "\n=== All Tasks Completed ===\n" << std::endl;
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

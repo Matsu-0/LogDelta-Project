@@ -262,6 +262,7 @@ double main_encoding_compress(const std::string& input_path,
     
     // Write encoding head
     BitBuffer stream;
+    stream.encode(static_cast<int>(compressor), 8);  // Add compressor type
     stream.encode(window_size, 16);
     stream.encode(log_length, 16);
     stream.encode(block_size, 16);
