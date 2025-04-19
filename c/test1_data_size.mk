@@ -2,22 +2,23 @@ CXX = g++
 CXXFLAGS = -std=c++11 -Wall -O2
 LDFLAGS = -llzma -lz -lzstd
 
+# Target file
+TARGET = test1_data_size
+
 # Source files
-SRCS = record_compress.cpp \
+SRCS = test1_data_size.cpp \
+       record_compress.cpp \
        bit_buffer.cpp \
        bit_packing.cpp \
        distance.cpp \
        qgram_match.cpp \
+       variable_length_substitution.cpp \
        utils.cpp \
-       rle.cpp \
-       variable_length_substitution.cpp
+       rle.cpp
 
 # Object and dependency files
 OBJS = $(SRCS:.cpp=.o)
 DEPS = $(SRCS:.cpp=.d)
-
-# Target executable
-TARGET = record_compress
 
 # Default target
 all: $(TARGET)

@@ -1,6 +1,9 @@
 #include "bit_packing.hpp"
 #include <stdexcept>
 #include <iostream>
+#include <algorithm>
+#include <bitset>
+#include <cmath>
 
 // Calculate the number of bits needed to represent a number
 static int get_bit_width(int num) {

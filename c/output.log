@@ -1,0 +1,120 @@
+nohup: ignoring input
+
+=== Starting Approximate Encoding ===
+
+
+=== Processing dataset: Android ===
+Time cost: 139.592 seconds
+Dataset Android time_list size: 1
+time_list values: 139.592 
+
+=== Processing dataset: Apache ===
+Time cost: 2.62665 seconds
+Dataset Apache time_list size: 1
+time_list values: 2.62665 
+
+=== Processing dataset: HPC ===
+Time cost: 17.8829 seconds
+Dataset HPC time_list size: 1
+time_list values: 17.8829 
+
+=== Processing dataset: Mac ===
+Time cost: 6.13224 seconds
+Dataset Mac time_list size: 1
+time_list values: 6.13224 
+
+=== Processing dataset: OpenStack ===
+Time cost: 5.76359 seconds
+Dataset OpenStack time_list size: 1
+time_list values: 5.76359 
+
+=== Processing dataset: Spark ===
+Time cost: 0.850012 seconds
+Dataset Spark time_list size: 1
+time_list values: 0.850012 
+
+=== Processing dataset: Zookeeper ===
+Time cost: 4.6016 seconds
+Dataset Zookeeper time_list size: 1
+time_list values: 4.6016 
+
+=== Processing dataset: SSH ===
+Time cost: 37.227 seconds
+Dataset SSH time_list size: 1
+time_list values: 37.227 
+
+=== Processing dataset: Linux ===
+Time cost: 1.03949 seconds
+Dataset Linux time_list size: 1
+time_list values: 1.03949 
+
+=== Processing dataset: Proxifier ===
+Time cost: 1.04251 seconds
+Dataset Proxifier time_list size: 1
+time_list values: 1.04251 
+
+=== Processing dataset: Thunderbird ===
+Time cost: 209.717 seconds
+Dataset Thunderbird time_list size: 1
+time_list values: 209.717 
+Preparing to write CSV...
+Number of datasets: 11
+Size of time_sets: 11
+Dataset: Android, Values: 139.592 
+Dataset: Apache, Values: 2.62665 
+Dataset: HPC, Values: 17.8829 
+Dataset: Linux, Values: 1.03949 
+Dataset: Mac, Values: 6.13224 
+Dataset: OpenStack, Values: 5.76359 
+Dataset: Proxifier, Values: 1.04251 
+Dataset: SSH, Values: 37.227 
+Dataset: Spark, Values: 0.850012 
+Dataset: Thunderbird, Values: 209.717 
+Dataset: Zookeeper, Values: 4.6016 
+CSV write completed with status: success
+
+=== Approximate Encoding Completed ===
+
+
+=== Starting Exact Encoding ===
+
+
+=== Processing dataset: Android ===
+Time cost: 23276.6 seconds
+
+=== Processing dataset: Apache ===
+Time cost: 126.035 seconds
+
+=== Processing dataset: HPC ===
+Time cost: 272.094 seconds
+
+=== Processing dataset: Mac ===
+Time cost: 1859.95 seconds
+
+=== Processing dataset: OpenStack ===
+Time cost: 4203.8 seconds
+
+=== Processing dataset: Spark ===
+Time cost: 57.2909 seconds
+
+=== Processing dataset: Zookeeper ===
+Time cost: 2406.83 seconds
+
+=== Processing dataset: SSH ===
+Time cost: 4482.45 seconds
+
+=== Processing dataset: Linux ===
+Time cost: 299.39 seconds
+
+=== Processing dataset: Proxifier ===
+Time cost: 68.6032 seconds
+
+=== Processing dataset: Thunderbird ===
+Time cost: 34820.5 seconds
+Preparing to write CSV...
+Number of datasets: 11
+Size of time_sets: 11
+CSV write completed with status: success
+
+=== All Tasks Completed ===
+

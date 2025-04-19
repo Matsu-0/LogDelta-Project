@@ -4,8 +4,21 @@
 #include <string>
 #include <vector>
 #include "bit_buffer.hpp"
+#include "distance.hpp"
 
-// Custom data structure to replace DataFrame
+// Global default parameters
+namespace DefaultParams {
+    const int WINDOW_SIZE = 8;
+    const int LOG_LENGTH = 256;
+    const double THRESHOLD = 0.06;
+    const int BLOCK_SIZE = 32768;
+    const int Q = 3;  // Default Q-gram size
+    const CompressorType COMPRESSOR = CompressorType::LZMA;
+    const DistanceType DISTANCE = DistanceType::MINHASH;
+    const bool USE_APPROX = true;
+}
+
+// Custom data structure for storing compression records
 struct Record {
     int method;
     int another_line;
@@ -20,31 +33,16 @@ struct Record {
 // Function declarations
 void byteArrayEncoding(const std::vector<Record>& records, 
                       const std::string& output_path, 
-                      CompressorType compressor = CompressorType::NONE);
+                      CompressorType compressor = DefaultParams::COMPRESSOR);
 
-double main_encoding_compress_approx(const std::string& input_path, 
+double main_encoding_compress(const std::string& input_path, 
                             const std::string& output_path, 
-                            int window_size = 8,
-                            int log_length = 256,
-                            double threshold = 0.035,
-                            int block_size = 32768,
-                            CompressorType compressor = CompressorType::NONE);
-
-// Add global variables for statistics
-extern size_t total_method_size;
-extern size_t total_line_size;
-extern size_t total_begin_size;
-extern size_t total_operation_size;
-extern size_t total_length_size;
-extern size_t total_position_size;
-extern size_t total_string_size;
-
-extern size_t total_method_compressed;
-extern size_t total_line_compressed;
-extern size_t total_begin_compressed;
-extern size_t total_operation_compressed;
-extern size_t total_length_compressed;
-extern size_t total_position_compressed;
-extern size_t total_string_compressed;
+                            int window_size = DefaultParams::WINDOW_SIZE,
+                            int log_length = DefaultParams::LOG_LENGTH,
+                            double threshold = DefaultParams::THRESHOLD,
+                            int block_size = DefaultParams::BLOCK_SIZE,
+                            CompressorType compressor = DefaultParams::COMPRESSOR,
+                            DistanceType distance = DefaultParams::DISTANCE,
+                            bool use_approx = DefaultParams::USE_APPROX);
 
 #endif // RECORD_COMPRESS_HPP 

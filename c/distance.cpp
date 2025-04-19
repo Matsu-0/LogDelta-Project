@@ -153,6 +153,25 @@ double Distance::qgramCosineDistance(const std::string& str1, const std::string&
     return 1.0 - similarity; // Convert similarity to distance
 }
 
+double Distance::calculateDistance(const std::string& str1, const std::string& str2, 
+                                 DistanceType distance_type, int q) {
+    switch (distance_type) {
+        case DistanceType::COSINE:
+            return qgramCosineDistance(str1, str2, q);
+        case DistanceType::MINHASH:
+            return minHashDistance(str1, str2, q);
+        case DistanceType::QGRAM: {
+            auto [op_list, distance] = getQgramMatchOplist(str1, str2, q);
+            // Use the length of the longer string as denominator
+            size_t max_length = std::max(str1.length(), str2.length());
+            // Return min(distance/max_length, 1.0) to ensure result is in [0,1]
+            return std::min(1.0, static_cast<double>(distance) / max_length);
+        }
+        default:
+            return 1.0;
+    }
+}
+
 // Comment out the test main function
 /*
 int main() {
