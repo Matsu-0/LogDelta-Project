@@ -86,17 +86,31 @@ bool write_csv(const std::string& filepath,
     }
     
     // 写入表头
-    file << first_column_values[0];  // 第一列的表头
+    file << "Metric";  // 第一列的表头
     for (const auto& col : column_names) {
         file << "," << col;
     }
     file << "\n";
     
+    // 获取最大行数
+    size_t max_rows = 0;
+    for (const auto& col : column_names) {
+        if (time_sets.find(col) != time_sets.end()) {
+            max_rows = std::max(max_rows, time_sets.at(col).size());
+        }
+    }
+    
     // 写入数据
-    for (size_t i = 1; i < first_column_values.size(); ++i) {
-        file << first_column_values[i];
+    for (size_t i = 0; i < max_rows; ++i) {
+        // 写入第一列（指标名称）
+        file << (i < first_column_values.size() ? first_column_values[i] : "Time" + std::to_string(i+1));
+        
+        // 写入每个数据集的值
         for (const auto& col : column_names) {
-            file << "," << time_sets.at(col)[i-1];
+            file << ",";
+            if (time_sets.find(col) != time_sets.end() && i < time_sets.at(col).size()) {
+                file << time_sets.at(col)[i];
+            }
         }
         file << "\n";
     }

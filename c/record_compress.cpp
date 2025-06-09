@@ -11,10 +11,11 @@
 #include <fstream>
 #include <iostream>
 #include <bitset>
+#include <stdexcept>
 
 void byteArrayEncoding(const std::vector<Record>& records, const std::string& output_path, CompressorType compressor) {
     const int encoding_block = 1024;
-    BitBuffer stream;
+    BitOutBuffer stream;
 
     // Separate records with method 0 and 1
     std::vector<Record> records0, records1;
@@ -261,11 +262,15 @@ double main_encoding_compress(const std::string& input_path,
     std::ifstream input(input_path, std::ios::binary);
     
     // Write encoding head
-    BitBuffer stream;
-    stream.encode(static_cast<int>(compressor), 8);  // Add compressor type
+    BitOutBuffer stream;
     stream.encode(window_size, 16);
     stream.encode(log_length, 16);
     stream.encode(block_size, 16);
+    // 写入参数字节
+    int compressor_val = static_cast<int>(compressor);
+    int distance_val = static_cast<int>(distance);
+    uint8_t param_byte = (compressor_val & 0xF) | ((distance_val & 0x7) << 4) | ((use_approx ? 1 : 0) << 7);
+    stream.encode(param_byte, 8);
     stream.write(output_path);
 
     std::vector<Record> records;
@@ -395,13 +400,13 @@ double main_encoding_compress(const std::string& input_path,
     auto total_end_time = std::chrono::high_resolution_clock::now();
     double total_time = std::chrono::duration<double>(total_end_time - total_start_time).count();
 
-    // Secondary compression using specified compressor
-    auto comp_start = std::chrono::high_resolution_clock::now();
-    BitBuffer comp_stream;
-    comp_stream.read(output_path);
-    comp_stream.write(output_path, "wb", compressor);
-    auto comp_end = std::chrono::high_resolution_clock::now();
-    double comp_time = std::chrono::duration<double>(comp_end - comp_start).count();
+    // // Secondary compression using specified compressor
+    // auto comp_start = std::chrono::high_resolution_clock::now();
+    // if (!BitCompressor::compress_file(output_path, output_path, compressor)) {
+    //     throw std::runtime_error("Failed to compress output file: " + output_path);
+    // }
+    // auto comp_end = std::chrono::high_resolution_clock::now();
+    // double comp_time = std::chrono::duration<double>(comp_end - comp_start).count();
 
     // // Print time statistics
     // std::cout << "\nTime statistics:" << std::endl;
@@ -418,10 +423,11 @@ double main_encoding_compress(const std::string& input_path,
     // std::cout << "  Lines matched: " << matched_lines << std::endl;
     // std::cout << "  Match rate: " << (100.0 * matched_lines / total_lines) << "%" << std::endl;
 
-    return total_time + comp_time;
+    // return total_time + comp_time;
+    return total_time;
 }
 
-/*
+#ifdef RECORD_COMPRESS
 int main(int argc, char* argv[]) {
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size] [distance] [use_approx]" << std::endl;
@@ -563,4 +569,4 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 }
-*/
+#endif // RECORD_COMPRESS

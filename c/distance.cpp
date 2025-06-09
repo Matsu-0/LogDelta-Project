@@ -172,8 +172,7 @@ double Distance::calculateDistance(const std::string& str1, const std::string& s
     }
 }
 
-// Comment out the test main function
-/*
+#ifdef DISTANCE_TEST
 int main() {
     std::string str1 = "Jun  9 06:06:51 combo anacron: anacron startup succeeded";
     std::string str2 = "Jun  9 06:06:51 combo atd: atd startup succeeded";
@@ -181,4 +180,4 @@ int main() {
     std::cout << distance << std::endl;
     return 0;
 }
-*/
+#endif // DISTANCE_TEST

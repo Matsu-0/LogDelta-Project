@@ -192,8 +192,7 @@ std::string recoverQgramString(
     return result;
 }
 
-// Comment out the test main function
-/*
+#ifdef QGRAM_MATCH_TEST
 int main() {
     std::string str1 = "Jun 11 09:46:15 combo sshd: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=unknown.sagonet.net  user=root";
     std::string str2 = "Jun 11 09:46:18 combo sshd(pam_unix)[6488]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=unknown.sagonet.net  user=rst";
@@ -211,4 +210,4 @@ int main() {
     std::cout << "Original : " << str2 << std::endl;
     std::cout << "Recovered: " << recovered << std::endl;
 }
-*/
+#endif // QGRAM_MATCH_TEST

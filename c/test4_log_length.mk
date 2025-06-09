@@ -1,21 +1,11 @@
-CXX = clang++
-CXXFLAGS = -std=c++11 -Wall -O2 -I/opt/homebrew/include -I.
-LDFLAGS = -L/opt/homebrew/lib -llzma -lz -lzstd
+CXX = g++
+CXXFLAGS = -std=c++11 -Wall -O2
+LDFLAGS = -llzma -lz -lzstd
 
-# 检测是否为 ARM 架构（M1/M2 芯片）
-UNAME_M := $(shell uname -m)
-ifeq ($(UNAME_M),arm64)
-    CXXFLAGS += -arch arm64
-    LDFLAGS := -arch arm64 $(LDFLAGS)
-endif
-
-# 目标文件
+# Target file
 TARGET = test4_log_length
 
-# 源文件路径
-VPATH = .
-
-# 源文件
+# Source files
 SRCS = test4_log_length.cpp \
        record_compress.cpp \
        bit_buffer.cpp \
@@ -26,24 +16,28 @@ SRCS = test4_log_length.cpp \
        utils.cpp \
        rle.cpp
 
-# 生成的对象文件
+# Object and dependency files
 OBJS = $(SRCS:.cpp=.o)
+DEPS = $(SRCS:.cpp=.d)
 
-# 默认目标
+# Default target
 all: $(TARGET)
 
-# 链接规则
+# Include dependency files
+-include $(DEPS)
+
+# Main target
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET) $(LDFLAGS)
-	@echo "Cleaning object files..."
-	@rm -f $(OBJS)
+	@echo "Cleaning intermediate files..."
+	@rm -f $(OBJS) $(DEPS)
 
-# 编译规则
+# Generate object files and dependency files
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
-# 清理规则
+# Clean all generated files
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f $(OBJS) $(DEPS) $(TARGET)
 
 .PHONY: all clean 

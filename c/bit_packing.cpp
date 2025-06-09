@@ -106,17 +106,13 @@ std::vector<int> bit_packing_decode(const std::vector<unsigned char>& encoded, i
     return result;
 }
 
-// Comment out the test main function
-/*
+#ifdef BITPACKING_TEST
 int main() {
     std::vector<int> test = {5, 7, 3, 3, 4, 2, 4, 2, 5, 12, 23};
-    
     // Encode
     std::vector<unsigned char> encoded = bit_packing_encode(test);
-    
     // Decode
     std::vector<int> decoded = bit_packing_decode(encoded, test.size());
-    
     // Print results
     std::cout << "Encoded bytes: ";
     for (unsigned char byte : encoded) {
@@ -127,12 +123,10 @@ int main() {
         std::cout << static_cast<int>(byte) << " ";
     }
     std::cout << std::dec << "\n";
-
     std::cout << "Decoded values:\n";
     for (size_t i = 0; i < test.size(); i++) {
         std::cout << "original: " << test[i] << ", decoded: " << decoded[i] << "\n";
     }
-    
     return 0;
 }
-*/
+#endif // BITPACKING_TEST

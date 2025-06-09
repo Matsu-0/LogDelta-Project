@@ -6,6 +6,8 @@
 #include <chrono>
 #include "record_compress.hpp"
 #include "utils.hpp"
+#include "bit_buffer.hpp"
+#include <stdexcept>
 
 // Define dataset names and compressor types
 const std::vector<std::string> datasets = {"Android", "Apache", "HPC", "Mac", "OpenStack", "Spark", "Zookeeper", "SSH", "Linux", "Proxifier", "Thunderbird"};
@@ -120,7 +122,7 @@ void approx_encoding() {
     }
 
     // Write compression times to CSV
-    std::string csv_path = output_path + "compression_time.csv";
+    std::string csv_path = output_path + "time_cost.csv";
     std::vector<std::string> first_column;
     first_column.push_back("Compressor");
     for (const auto& [name, _] : compressors) {
@@ -216,7 +218,7 @@ void exact_encoding() {
     }
 
     // Write compression times to CSV
-    std::string csv_path = output_path + "compression_time.csv";
+    std::string csv_path = output_path + "time_cost.csv";
     std::vector<std::string> first_column;
     first_column.push_back("Compressor");
     for (const auto& [name, _] : compressors) {
@@ -233,17 +235,69 @@ void exact_encoding() {
     }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc != 4) {
+        std::cerr << "Usage: " << argv[0] << " <input_file> <output_file> <compressor_type>" << std::endl;
+        return 1;
+    }
+
+    std::string input_file = argv[1];
+    std::string output_file = argv[2];
+    int compressor_type = std::stoi(argv[3]);
+
     try {
-        std::cout << "\n=== Starting Approximate Encoding ===\n" << std::endl;
-        approx_encoding();
-        std::cout << "\n=== Approximate Encoding Completed ===\n" << std::endl;
+        // Read input file into BitOutBuffer
+        BitOutBuffer out_buffer;
+        std::ifstream in_file(input_file, std::ios::binary);
+        if (!in_file) {
+            throw std::runtime_error("Failed to open input file: " + input_file);
+        }
+
+        // Read and encode data
+        char buffer[1024];
+        while (in_file.read(buffer, sizeof(buffer))) {
+            for (size_t i = 0; i < sizeof(buffer); i++) {
+                out_buffer.encode(static_cast<uint8_t>(buffer[i]), 8);
+            }
+        }
         
-        std::cout << "\n=== Starting Exact Encoding ===\n" << std::endl;
-        exact_encoding();
-        
-        std::cout << "\n=== All Tasks Completed ===\n" << std::endl;
+        // Handle remaining bytes
+        size_t remaining = in_file.gcount();
+        for (size_t i = 0; i < remaining; i++) {
+            out_buffer.encode(static_cast<uint8_t>(buffer[i]), 8);
+        }
+
+        // Write compressed output using BitOutBuffer
+        if (!out_buffer.write(output_file, "wb", static_cast<CompressorType>(compressor_type))) {
+            throw std::runtime_error("Failed to write output file: " + output_file);
+        }
+
+        // Verify by reading back
+        BitInBuffer in_buffer;
+        if (!in_buffer.read(output_file, static_cast<CompressorType>(compressor_type))) {
+            throw std::runtime_error("Failed to read compressed file: " + output_file);
+        }
+
+        // Create verification file
+        std::string verify_file = output_file + ".verify";
+        std::ofstream verify_out(verify_file, std::ios::binary);
+        if (!verify_out) {
+            throw std::runtime_error("Failed to open verification file: " + verify_file);
+        }
+
+        // Decode and write data
+        try {
+            while (true) {
+                uint8_t byte = in_buffer.decode(8);
+                verify_out.write(reinterpret_cast<char*>(&byte), 1);
+            }
+        } catch (const std::runtime_error&) {
+            // End of stream
+        }
+
+        std::cout << "Compression and verification completed successfully" << std::endl;
         return 0;
+
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;

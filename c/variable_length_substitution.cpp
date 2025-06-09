@@ -13,21 +13,11 @@ std::vector<Position> getSearchRange(int x, int y, const std::string& str1, cons
     
     // Check boundary conditions
     if (x <= 0 || y <= 0) {
-        std::cout << "Boundary condition failed: x <= 0 or y <= 0\n";
         return K;
     }
     
     // Create counting array C
     std::vector<std::vector<int>> C(x + 1, std::vector<int>(y + 1, 0));
-    
-    // std::cout << "Initial C array:\n";
-    // for (int i = 0; i <= x; i++) {
-    //     for (int j = 0; j <= y; j++) {
-    //         std::cout << C[i][j] << " ";
-    //     }
-    //     std::cout << "\n";
-    // }
-    // std::cout << "\n";
     
     // Fill C array from current position backwards with pruning
     for (int i = x - 1; i >= 0; i--) {
@@ -56,20 +46,6 @@ std::vector<Position> getSearchRange(int x, int y, const std::string& str1, cons
         if (row_pruned) break;
     }
     
-    // std::cout << "\nFinal C array:\n";
-    // for (int i = 0; i <= x; i++) {
-    //     for (int j = 0; j <= y; j++) {
-    //         std::cout << C[i][j] << " ";
-    //     }
-    //     std::cout << "\n";
-    // }
-    
-    // std::cout << "\nFinal search range positions:\n";
-    // for (const auto& pos : K) {
-    //     std::cout << "(" << pos.i << ", " << pos.j << ") ";
-    // }
-    // std::cout << "\n=== End Debug Output ===\n\n";
-    
     return K;
 }
 
@@ -79,10 +55,6 @@ std::pair<std::vector<OperationItem>, double> getSubstitutionOplist(
     std::vector<OperationItem> operationList;
     double distance = 0;
 
-    // std::cout << "\n=== DP Matrix ===\n";
-    // std::cout << "String1: \"" << str1 << "\"\n";
-    // std::cout << "String2: \"" << str2 << "\"\n\n";
-    
     // If strings are identical, return empty operation list and zero distance
     if (str1 == str2) {
         return {operationList, distance};
@@ -176,24 +148,6 @@ std::pair<std::vector<OperationItem>, double> getSubstitutionOplist(
             }
         }
     }
-
-    // // Print the final DP matrix
-    // std::cout << "     ";
-    // for (int j = 0; j < n; j++) {
-    //     std::cout << str2[j] << "     ";
-    // }
-    // std::cout << "\n";
-    
-    // for (int i = 0; i <= m; i++) {
-    //     if (i == 0) std::cout << "  ";
-    //     else std::cout << str1[i-1] << " ";
-        
-    //     for (int j = 0; j <= n; j++) {
-    //         printf("%5.1f ", dp[i][j]);
-    //     }
-    //     std::cout << "\n";
-    // }
-    // std::cout << "\n";
 
     // Reconstruct the operations by backtracking
     int i = m, j = n;
@@ -300,7 +254,6 @@ int main() {
         {"Version 1.0.0", "Version 2.0.0"},             // version number change
         {"<html><body>Text</body></html>", "<div>Text</div>"}, // HTML tag change
         {"192.168.0.1", "192.168.1.1"},                // IP address change
-        {"34-02", "24-01"}, 
     };
 
     for (const auto& [str1, str2] : test_cases) {
