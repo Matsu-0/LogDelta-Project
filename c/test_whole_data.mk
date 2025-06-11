@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -O2
+CXXFLAGS = -std=c++17 -Wall -O2
 LDFLAGS = -llzma -lz -lzstd
 
 # Target file
@@ -12,31 +12,29 @@ SRCS = test_whole_data.cpp \
        bit_packing.cpp \
        distance.cpp \
        qgram_match.cpp \
-       variable_length_substitution.cpp \
        utils.cpp \
-       rle.cpp
+       rle.cpp \
+       variable_length_substitution.cpp \
+       ts_2diff.cpp
 
-# Object and dependency files
+# Object files
 OBJS = $(SRCS:.cpp=.o)
-DEPS = $(SRCS:.cpp=.d)
 
 # Default target
-all: $(TARGET) clean
-
-# Include dependency files
--include $(DEPS)
+all: $(TARGET)
 
 # Main target
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET) $(LDFLAGS)
+	@echo "Cleaning object files..."
+	@rm -f $(OBJS)
 
-# Generate object files and dependency files
+# Compile source files to object files
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean all generated files
 clean:
-	@echo "Cleaning intermediate files..."
-	@rm -f $(OBJS) $(DEPS)
+	rm -f $(OBJS) $(TARGET)
 
 .PHONY: all clean

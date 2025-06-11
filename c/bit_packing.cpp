@@ -53,7 +53,7 @@ std::vector<unsigned char> bit_packing_encode(const std::vector<int>& arr) {
     }
 
     // Pad with zeros
-    while (binary_string.length() < total_bytes * 8) {
+    while ( (int) binary_string.length() < total_bytes * 8) {
         binary_string += '0';
     }
 

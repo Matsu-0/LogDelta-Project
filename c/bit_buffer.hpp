@@ -29,6 +29,7 @@ public:
     size_t length();
     bool write(const std::string& file_path, const std::string& mode = "wb", CompressorType compressor = CompressorType::NONE);
     const std::vector<uint8_t>& get_bytes() const { return byte_stream; }
+    void clear();
 
 private:
     static constexpr uint8_t BYTE_LENGTH = 8;

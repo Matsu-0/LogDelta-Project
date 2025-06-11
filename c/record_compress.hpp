@@ -9,7 +9,6 @@
 // Global default parameters
 namespace DefaultParams {
     const int WINDOW_SIZE = 8;
-    const int LOG_LENGTH = 256;
     const double THRESHOLD = 0.06;
     const int BLOCK_SIZE = 32768;
     const int Q = 3;  // Default Q-gram size
@@ -38,7 +37,7 @@ void byteArrayEncoding(const std::vector<Record>& records,
 double main_encoding_compress(const std::string& input_path, 
                             const std::string& output_path, 
                             int window_size = DefaultParams::WINDOW_SIZE,
-                            int log_length = DefaultParams::LOG_LENGTH,
+                            // int log_length = 0,
                             double threshold = DefaultParams::THRESHOLD,
                             int block_size = DefaultParams::BLOCK_SIZE,
                             CompressorType compressor = DefaultParams::COMPRESSOR,

@@ -36,7 +36,7 @@ std::vector<uint64_t> MinHash::getSignature(const std::string& str) {
     std::vector<uint64_t> signature(numHashes_, UINT64_MAX);
     
     // Check if string is too short
-    if (str.length() < k_) {
+    if ((int) str.length() < k_) {
         signature_cache_[str] = signature;
         return signature;
     }
@@ -46,10 +46,10 @@ std::vector<uint64_t> MinHash::getSignature(const std::string& str) {
     const size_t len = str.length();
     
     try {
-        for (size_t i = 0; i + k_ <= len; ++i) {
+        for (int i = 0; i + k_ <= (int) len; ++i) {
             // Calculate base hash without creating new strings
             uint64_t base_hash = 5381;
-            for (size_t j = 0; j < k_; ++j) {
+            for (int j = 0; j < k_; ++j) {
                 base_hash = ((base_hash << 5) + base_hash) + 
                            static_cast<unsigned char>(data[i + j]);
             }
@@ -87,7 +87,7 @@ double Distance::minHashDistance(const std::string& str1, const std::string& str
     
     // If either string is empty or too short, return 1.0
     if (str1.empty() || str2.empty() || 
-        str1.length() < k || str2.length() < k) {
+        (int) str1.length() < k || (int) str2.length() < k) {
         return 1.0;
     }
     
@@ -103,9 +103,9 @@ double Distance::minHashDistance(const std::string& str1, const std::string& str
 std::unordered_map<std::string, int> Distance::generateQgrams(const std::string& str, int q) {
     std::unordered_map<std::string, int> qgrams;
     
-    if (str.length() < q) return qgrams;
+    if ((int) str.length() < q) return qgrams;
     // Generate q-grams using sliding window
-    for (size_t i = 0; i <= str.length() - q; ++i) {
+    for (int i = 0; i <= (int) str.length() - q; ++i) {
         std::string qgram = str.substr(i, q);
         qgrams[qgram]++;
     }

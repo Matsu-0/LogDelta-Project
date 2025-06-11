@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -O2
+CXXFLAGS = -std=c++17 -Wall -O2
 LDFLAGS = -llzma -lz -lzstd
 
 # Source files
@@ -10,7 +10,8 @@ SRCS = record_compress.cpp \
        qgram_match.cpp \
        utils.cpp \
        rle.cpp \
-       variable_length_substitution.cpp
+       variable_length_substitution.cpp \
+       ts_2diff.cpp
 
 DECOMPRESS_SRCS = record_decompress.cpp \
        bit_buffer.cpp \
@@ -19,7 +20,8 @@ DECOMPRESS_SRCS = record_decompress.cpp \
        qgram_match.cpp \
        utils.cpp \
        rle.cpp \
-       variable_length_substitution.cpp
+       variable_length_substitution.cpp \
+       ts_2diff.cpp
 
 # Object and dependency files
 OBJS = $(SRCS:.cpp=.o)
@@ -30,6 +32,7 @@ DECOMPRESS_DEPS = $(DECOMPRESS_SRCS:.cpp=.d)
 # Target executables
 COMPRESS_TARGET = record_compress
 DECOMPRESS_TARGET = record_decompress
+RLE_TEST_TARGET = rle_test
 
 # Default target
 all: $(COMPRESS_TARGET) $(DECOMPRESS_TARGET)
@@ -49,6 +52,10 @@ $(DECOMPRESS_TARGET): $(DECOMPRESS_OBJS)
 	@echo "Cleaning intermediate files..."
 	@rm -f $(DECOMPRESS_OBJS) $(DECOMPRESS_DEPS)
 
+# RLE test target
+$(RLE_TEST_TARGET): rle.o utils.o
+	$(CXX) $(CXXFLAGS) -DRLE_TEST rle.o utils.o -o $(RLE_TEST_TARGET)
+
 # Generate object files and dependency files
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
@@ -63,6 +70,6 @@ record_decompress.o: record_decompress.cpp
 
 # Clean all generated files
 clean:
-	rm -f $(OBJS) $(DEPS) $(DECOMPRESS_OBJS) $(DECOMPRESS_DEPS) $(COMPRESS_TARGET) $(DECOMPRESS_TARGET)
+	rm -f $(OBJS) $(DEPS) $(DECOMPRESS_OBJS) $(DECOMPRESS_DEPS) $(COMPRESS_TARGET) $(DECOMPRESS_TARGET) $(RLE_TEST_TARGET)
 
 .PHONY: all clean

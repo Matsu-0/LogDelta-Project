@@ -22,7 +22,7 @@ void cleanup_resources(std::map<std::string, std::vector<double>>& time_sets) {
 
 void approx_encoding() {
     std::string input_path = "../datasets/test_dataset/";
-    std::string output_path = "../result/result_approx/test_dataset/";
+    std::string output_path = "../result_new/result_approx/test_dataset/";
     std::map<std::string, std::vector<double>> time_sets;
 
     // Ensure output directory exists
@@ -44,17 +44,14 @@ void approx_encoding() {
             continue;
         }
         
-        double time = main_encoding_compress(
-            input_file_name, 
-            output_file_name,
-            DefaultParams::WINDOW_SIZE,
-            DefaultParams::LOG_LENGTH,
-            DefaultParams::THRESHOLD,
-            DefaultParams::BLOCK_SIZE,
-            CompressorType::LZMA,
-            DefaultParams::DISTANCE,
-            true  // Use approx
-        );
+        double time = main_encoding_compress(input_file_name, output_file_name, 
+                                           DefaultParams::WINDOW_SIZE,
+                                           DefaultParams::LOG_LENGTH,
+                                           DefaultParams::THRESHOLD,    
+                                           DefaultParams::BLOCK_SIZE,
+                                           DefaultParams::COMPRESSOR,
+                                           DefaultParams::DISTANCE,
+                                           DefaultParams::USE_APPROX);
         
         std::cout << "Time cost: " << time << " seconds" << std::endl;
         time_list.push_back(time);  // Add time to list
@@ -95,7 +92,7 @@ void approx_encoding() {
 
 void exact_encoding() {
     std::string input_path = "../datasets/test_dataset/";
-    std::string output_path = "../result/result_exact/test_dataset/";
+    std::string output_path = "../result_new/result_exact/test_dataset/";
     std::map<std::string, std::vector<double>> time_sets;
 
     // Ensure output directory exists
@@ -117,17 +114,14 @@ void exact_encoding() {
             continue;
         }
         
-        double time = main_encoding_compress(
-            input_file_name, 
-            output_file_name,
-            DefaultParams::WINDOW_SIZE,
-            DefaultParams::LOG_LENGTH,
-            DefaultParams::THRESHOLD,
-            DefaultParams::BLOCK_SIZE,
-            CompressorType::LZMA,
-            DefaultParams::DISTANCE,
-            false  // Use exact
-        );
+        double time = main_encoding_compress(input_file_name, output_file_name, 
+                                           DefaultParams::WINDOW_SIZE,
+                                           DefaultParams::LOG_LENGTH,
+                                           DefaultParams::THRESHOLD,
+                                           DefaultParams::BLOCK_SIZE,
+                                           DefaultParams::COMPRESSOR,
+                                           DefaultParams::DISTANCE,
+                                           false);  // Set use_approx to false
         
         std::cout << "Time cost: " << time << " seconds" << std::endl;
         time_list.push_back(time);  // Add time to list
@@ -158,10 +152,10 @@ int main() {
         // Add a small delay to ensure resources are properly released
         std::cout.flush();
         
-        std::cout << "\n=== Starting Exact Encoding ===\n" << std::endl;
-        exact_encoding();
+        // std::cout << "\n=== Starting Exact Encoding ===\n" << std::endl;
+        // exact_encoding();
         
-        std::cout << "\n=== All Tasks Completed ===\n" << std::endl;
+        // std::cout << "\n=== All Tasks Completed ===\n" << std::endl;
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

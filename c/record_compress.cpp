@@ -5,6 +5,7 @@
 #include "bit_packing.hpp"
 #include "qgram_match.hpp"
 #include "record_compress.hpp"
+#include "ts_2diff.hpp"
 #include "variable_length_substitution.hpp"
 #include <chrono>
 #include <deque>
@@ -12,9 +13,33 @@
 #include <iostream>
 #include <bitset>
 #include <stdexcept>
+#include <algorithm>
+#include <iomanip>
+
+// Define macro for encoding statistics output
+#ifndef ENCODING_STATS
+#define ENCODING_STATS 1  // Set to 1 to enable statistics output
+#endif
+
+#define PRINT_STATS(x) if (ENCODING_STATS) { std::cout << x << std::endl; }
+
+void printRecord(const Record& record, int idx) {
+    std::cout << "Record[" << idx << "]: method=" << record.method
+            //   << ", another_line=" << record.another_line
+              << ", begin=" << record.begin
+              << ", operation_size=" << record.operation_size;
+    std::cout << "  position_list: ";
+    for (auto v : record.position_list) std::cout << v << " ";
+    std::cout << "  d_length: ";
+    for (auto v : record.d_length) std::cout << v << " ";
+    std::cout << "  i_length: ";
+    for (auto v : record.i_length) std::cout << v << " ";
+    std::cout << "  sub_string: ";
+    for (auto& s : record.sub_string) std::cout << '"' << s << '"' << " ";
+    std::cout << std::endl;
+}
 
 void byteArrayEncoding(const std::vector<Record>& records, const std::string& output_path, CompressorType compressor) {
-    const int encoding_block = 1024;
     BitOutBuffer stream;
 
     // Separate records with method 0 and 1
@@ -24,48 +49,63 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
         else records1.push_back(record);
     }
 
-    stream.encode(records0.size(), 16);
-    stream.encode(records1.size(), 16);
+    PRINT_STATS("\n=== Block Encoding Statistics ===");
+    PRINT_STATS("Records0 (method 0) count: " << records0.size());
+    PRINT_STATS("Records1 (method 1) count: " << records1.size());
+    PRINT_STATS("Total records: " << records.size());
+
+    // Encode record counts
+    stream.encode(records0.size(), 32);
+    stream.encode(records1.size(), 32);
+    PRINT_STATS("Record counts encoding length: " << 8 << " bytes");
 
     // Encode method using RLE
     std::vector<int> method_list;
     for (const auto& record : records) {
         method_list.push_back(record.method);
     }
-    std::vector<unsigned char> rle_bytes = rleEncode(method_list);
+    auto method_encoded = rleEncode(method_list);
+    std::vector<unsigned char> rle_bytes = method_encoded.bytes;
+    size_t method_interval_count = method_encoded.interval_count;
     std::string rle_string;
     for (unsigned char byte : rle_bytes) {
         rle_string += std::bitset<8>(byte).to_string();
     }
-    int method_length = (rle_string.length() + 7) / 8;
+    size_t method_length = (rle_string.length() + 7) / 8;
     while (rle_string.length() < method_length * 8) {
         rle_string += '0';
     }
-    stream.encode(method_length, 16);
-    for (int i = 0; i < method_length; i++) {
+    stream.encode(static_cast<int>(method_length), 16);
+    for (size_t i = 0; i < method_length; i++) {
         int bf = std::stoi(rle_string.substr(i * 8, 8), nullptr, 2);
         stream.encode(bf, 8);
     }
+    stream.encode(method_interval_count, 32);
+    PRINT_STATS("Method encoding length: " << (2 + method_length + 4) << " bytes");
 
-    // Encode another_line using RLE
-    std::vector<int> another_line_list;
-    for (const auto& record : records) {
-        another_line_list.push_back(record.another_line);
-    }
-    rle_bytes = rleEncode(another_line_list);
-    rle_string.clear();
-    for (unsigned char byte : rle_bytes) {
-        rle_string += std::bitset<8>(byte).to_string();
-    }
-    int line_length = (rle_string.length() + 7) / 8;
-    while (rle_string.length() < line_length * 8) {
-        rle_string += '0';
-    }
-    stream.encode(line_length, 16);
-    for (int i = 0; i < line_length; i++) {
-        int bf = std::stoi(rle_string.substr(i * 8, 8), nullptr, 2);
-        stream.encode(bf, 8);
-    }
+    // // Encode another_line using RLE
+    // std::vector<int> another_line_list;
+    // for (const auto& record : records) {
+    //     another_line_list.push_back(record.another_line);
+    // }
+    // auto line_encoded = rleEncode(another_line_list);
+    // rle_bytes = line_encoded.bytes;
+    // size_t line_interval_count = line_encoded.interval_count;
+    // rle_string.clear();
+    // for (unsigned char byte : rle_bytes) {
+    //     rle_string += std::bitset<8>(byte).to_string();
+    // }
+    // size_t line_length = (rle_string.length() + 7) / 8;
+    // while (rle_string.length() < line_length * 8) {
+    //     rle_string += '0';
+    // }
+    // stream.encode(static_cast<int>(line_length), 16);
+    // for (size_t i = 0; i < line_length; i++) {
+    //     int bf = std::stoi(rle_string.substr(i * 8, 8), nullptr, 2);
+    //     stream.encode(bf, 8);
+    // }
+    // stream.encode(line_interval_count, 32);
+    // PRINT_STATS("Line encoding length: " << (2 + line_length + 4) << " bytes");
 
     // Encode begin using bit packing
     std::vector<int> begins;
@@ -75,21 +115,23 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
 
     if (begins.empty()) {
         stream.encode(0, 16);
+        PRINT_STATS("Begin encoding length: 2 bytes (empty)");
     } else {
         std::vector<unsigned char> packed_bytes = bit_packing_encode(begins);
         std::string bit_packing_string;
         for (unsigned char byte : packed_bytes) {
             bit_packing_string += std::bitset<8>(byte).to_string();
         }
-        int leng = (bit_packing_string.length() + 7) / 8;
-        while (bit_packing_string.length() < leng * 8) {
+        size_t begin_length = (bit_packing_string.length() + 7) / 8;
+        while (bit_packing_string.length() < begin_length * 8) {
             bit_packing_string += '0';
         }
-        stream.encode(leng, 16);
-        for (int i = 0; i < leng; i++) {
+        stream.encode(static_cast<int>(begin_length), 16);
+        for (size_t i = 0; i < begin_length; i++) {
             int bf = std::stoi(bit_packing_string.substr(i * 8, 8), nullptr, 2);
             stream.encode(bf, 8);
         }
+        PRINT_STATS("Begin encoding length: " << (2 + begin_length) << " bytes");
     }
 
     // Encode operation_size using bit packing
@@ -100,21 +142,23 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
 
     if (operation_sizes.empty()) {
         stream.encode(0, 16);
+        PRINT_STATS("Operation size encoding length: 2 bytes (empty)");
     } else {
         std::vector<unsigned char> packed_bytes = bit_packing_encode(operation_sizes);
         std::string bit_packing_string;
         for (unsigned char byte : packed_bytes) {
             bit_packing_string += std::bitset<8>(byte).to_string();
         }
-        int leng = (bit_packing_string.length() + 7) / 8;
-        while (bit_packing_string.length() < leng * 8) {
+        size_t operation_length = (bit_packing_string.length() + 7) / 8;
+        while (bit_packing_string.length() < operation_length * 8) {
             bit_packing_string += '0';
         }
-        stream.encode(leng, 16);
-        for (int i = 0; i < leng; i++) {
+        stream.encode(static_cast<int>(operation_length), 16);
+        for (size_t i = 0; i < operation_length; i++) {
             int bf = std::stoi(bit_packing_string.substr(i * 8, 8), nullptr, 2);
             stream.encode(bf, 8);
         }
+        PRINT_STATS("Operation size encoding length: " << (2 + operation_length) << " bytes");
     }
 
     // Encode lengths
@@ -124,39 +168,20 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
         length_list.insert(length_list.end(), record.i_length.begin(), record.i_length.end());
     }
 
-    if (length_list.empty()) {
-        stream.encode(0, 16);
+    size_t length_encoding_size = 0;
+    if (!records0.empty()) {
+        length_encoding_size = ts2diff_encode(length_list, stream);
+        PRINT_STATS("Length encoding size: " << length_encoding_size << " bytes");
     } else {
-        int blocks = std::max(1, (int)((length_list.size() - 1) / encoding_block));
-        for (int i = 0; i < blocks; i++) {
-            auto start = length_list.begin() + i * encoding_block;
-            auto end = start + std::min(encoding_block, (int)(length_list.end() - start));
-            std::vector<int> block_list(start, end);
-            
-            std::vector<unsigned char> packed_bytes = bit_packing_encode(block_list);
-            std::string bit_packing_string;
-            for (unsigned char byte : packed_bytes) {
-                bit_packing_string += std::bitset<8>(byte).to_string();
-            }
-            int leng = (bit_packing_string.length() + 7) / 8;
-            while (bit_packing_string.length() < leng * 8) {
-                bit_packing_string += '0';
-            }
-            stream.encode(leng, 16);
-            for (int j = 0; j < leng; j++) {
-                int bf = std::stoi(bit_packing_string.substr(j * 8, 8), nullptr, 2);
-                stream.encode(bf, 8);
-            }
-        }
+        PRINT_STATS("Length encoding size: 0 bytes (empty)");
     }
 
     // Encode positions
-    if (records0.empty()) {
-        stream.encode(0, 16);
-    } else {
+    size_t position_encoding_size = 0;
+    if (!records0.empty()) {
         std::vector<int> p_begin_list;
         std::vector<int> p_delta_list;
-        
+
         for (const auto& record : records0) {
             int oldp = -1;
             for (int p : record.position_list) {
@@ -169,53 +194,21 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
             }
         }
 
-        int block_num = (p_begin_list.size() + encoding_block - 1) / encoding_block;
-        stream.encode(block_num, 16);
-
-        // Encode begin positions
-        for (int i = 0; i < block_num; i++) {
-            auto start = p_begin_list.begin() + i * encoding_block;
-            auto end = start + std::min(encoding_block, (int)(p_begin_list.end() - start));
-            std::vector<int> block(start, end);
-            
-            std::vector<unsigned char> packed_bytes = bit_packing_encode(block);
-            std::string bit_packing_string;
-            for (unsigned char byte : packed_bytes) {
-                bit_packing_string += std::bitset<8>(byte).to_string();
-            }
-            int leng = (bit_packing_string.length() + 7) / 8;
-            while (bit_packing_string.length() < leng * 8) {
-                bit_packing_string += '0';
-            }
-            stream.encode(leng, 16);
-            for (int j = 0; j < leng; j++) {
-                int bf = std::stoi(bit_packing_string.substr(j * 8, 8), nullptr, 2);
-                stream.encode(bf, 8);
-            }
+        // Use ts2diff to encode begin positions
+        if (!p_begin_list.empty()) {
+            size_t begin_pos_size = ts2diff_encode(p_begin_list, stream);
+            position_encoding_size += begin_pos_size;
+            PRINT_STATS("Begin positions encoding size: " << begin_pos_size << " bytes");
         }
 
-        // Encode delta positions
-        int delta_blocks = std::max(1, (int)((p_delta_list.size() - 1) / encoding_block));
-        for (int i = 0; i < delta_blocks; i++) {
-            auto start = p_delta_list.begin() + i * encoding_block;
-            auto end = start + std::min(encoding_block, (int)(p_delta_list.end() - start));
-            std::vector<int> block(start, end);
-            
-            std::vector<unsigned char> packed_bytes = bit_packing_encode(block);
-            std::string bit_packing_string;
-            for (unsigned char byte : packed_bytes) {
-                bit_packing_string += std::bitset<8>(byte).to_string();
-            }
-            int leng = (bit_packing_string.length() + 7) / 8;
-            while (bit_packing_string.length() < leng * 8) {
-                bit_packing_string += '0';
-            }
-            stream.encode(leng, 16);
-            for (int j = 0; j < leng; j++) {
-                int bf = std::stoi(bit_packing_string.substr(j * 8, 8), nullptr, 2);
-                stream.encode(bf, 8);
-            }
+        // Use ts2diff to encode delta positions
+        if (!p_delta_list.empty()) {
+            size_t delta_pos_size = ts2diff_encode(p_delta_list, stream);
+            position_encoding_size += delta_pos_size;
+            PRINT_STATS("Delta positions encoding size: " << delta_pos_size << " bytes");
         }
+    } else {
+        PRINT_STATS("Position encoding size: 0 bytes (empty)");
     }
 
     // Encode strings
@@ -228,19 +221,23 @@ void byteArrayEncoding(const std::vector<Record>& records, const std::string& ou
     for (const auto& record : records1) {
         for (const auto& s : record.sub_string) {
             sub_string += s;
+            sub_string += '\n';  // Add newline for each string of record1
         }
     }
 
+    // Encode strings
     for (char byte : sub_string) {
         stream.encode(static_cast<unsigned char>(byte), 8);
     }
+    PRINT_STATS("String encoding size: " << sub_string.length() << " bytes");
+    PRINT_STATS("=== End of Block Encoding ===\n");
 
-    stream.write(output_path, "ab", compressor);
+    stream.write(output_path, "ab");
 }
 
 double main_encoding_compress(const std::string& input_path, 
                                    const std::string& output_path,
-                                   int window_size, int log_length,
+                                   int window_size,
                                    double threshold, int block_size,
                                    CompressorType compressor,
                                    DistanceType distance,
@@ -258,27 +255,28 @@ double main_encoding_compress(const std::string& input_path,
     double encoding_time = 0;
     
     std::deque<std::string> q;
-    int new_line_flag = 0;
+    // int new_line_flag = 0;
     std::ifstream input(input_path, std::ios::binary);
     
     // Write encoding head
     BitOutBuffer stream;
     stream.encode(window_size, 16);
-    stream.encode(log_length, 16);
-    stream.encode(block_size, 16);
-    // 写入参数字节
+    // stream.encode(block_size, 16);
+    
+    // Write parameter byte
     int compressor_val = static_cast<int>(compressor);
     int distance_val = static_cast<int>(distance);
     uint8_t param_byte = (compressor_val & 0xF) | ((distance_val & 0x7) << 4) | ((use_approx ? 1 : 0) << 7);
     stream.encode(param_byte, 8);
-    stream.write(output_path);
+    stream.write(output_path, "wb");
 
-    std::vector<Record> records;
     bool loop_end = false;
     int block_cnt = 0;
 
     while (!loop_end) {
         // Clear MinHash cache at the start of each block
+        std::vector<Record> records;
+
         MinHash::getInstance().clearCache();
         
         std::vector<int> line_flag;
@@ -293,22 +291,21 @@ double main_encoding_compress(const std::string& input_path,
                 loop_end = true;
                 break;
             }
-
-            while (line.length() >= log_length) {
-                line_list.push_back(line.substr(0, log_length - 1));
-                line = line.substr(log_length - 1);
-                line_flag.push_back(1);
-                index++;
-            }
-
             line_list.push_back(line);
-            line_flag.push_back(0);
             index++;
         }
         auto read_end = std::chrono::high_resolution_clock::now();
         read_time += std::chrono::duration<double>(read_end - read_start).count();
 
+        // Output the first 20 records
+        // std::cout << "\nFirst 20 lines in line_list:" << std::endl;
+        // for (int i = 0; i < std::min(20, (int)line_list.size()); i++) {
+        //     std::cout << "Line " << i << ": " << line_list[i] << std::endl;
+        // }
+        // std::cout << std::endl;
+
         // Process each line
+        int id = 0;
         for (const auto& line : line_list) {
             total_lines++;
             int begin = -1;
@@ -317,11 +314,11 @@ double main_encoding_compress(const std::string& input_path,
 
             // Calculate distances
             double min_distance = 1.0;  // Initialize to maximum distance
-            for (int i = 0; i < q.size(); i++) {
+            for (size_t i = 0; i < q.size(); i++) {
                 double tmp_dist = Distance::calculateDistance(q[i], line, distance, DefaultParams::Q);
                 if (tmp_dist < min_distance) {
                     min_distance = tmp_dist;
-                    begin = i;
+                    begin = static_cast<int>(i);
                 }
             }
             
@@ -334,12 +331,10 @@ double main_encoding_compress(const std::string& input_path,
             distance_time += std::chrono::duration<double>(distance_end - distance_start).count();
 
             auto match_start = std::chrono::high_resolution_clock::now();
+            Record record;
             if (begin == -1) {
-                Record record;
                 record.method = 1;
-                record.another_line = new_line_flag;
                 record.sub_string.push_back(line);
-                records.push_back(record);
             } else {
                 matched_lines++;
                 // Choose matching algorithm based on use_approx parameter
@@ -354,15 +349,10 @@ double main_encoding_compress(const std::string& input_path,
                 }
                 
                 if (new_distance > line.length()) {
-                    Record record;
                     record.method = 1;
-                    record.another_line = new_line_flag;
                     record.sub_string.push_back(line);
-                    records.push_back(record);
                 } else {
-                    Record record;
                     record.method = 0;
-                    record.another_line = new_line_flag;
                     record.begin = begin;
                     record.operation_size = op_list.size();
                     for (const auto& op : op_list) {
@@ -371,21 +361,31 @@ double main_encoding_compress(const std::string& input_path,
                         record.i_length.push_back(op.length2);
                         record.sub_string.push_back(op.substr);
                     }
-                    records.push_back(record);
                 }
             }
+            records.push_back(record);
+            // printRecord(record, id);
+
+            id++;
 
             auto match_end = std::chrono::high_resolution_clock::now();
             match_time += std::chrono::duration<double>(match_end - match_start).count();
 
             // Update sliding window
-            if (q.size() < window_size) {
+            if (q.size() < static_cast<size_t>(window_size)) {
                 q.push_back(line);
             } else {
                 q.pop_front();
                 q.push_back(line);
             }
         }
+
+        // // Print all records in this block
+        // std::cout << "\n=== Records in this block (total: " << records.size() << ") ===" << std::endl;
+        // for (size_t i = 0; i < records.size(); ++i) {
+        //     printRecord(records[i], i);
+        // }
+        // std::cout << "=== End of block records ===\n" << std::endl;
 
         // Encode records
         auto encoding_start = std::chrono::high_resolution_clock::now();
@@ -400,22 +400,22 @@ double main_encoding_compress(const std::string& input_path,
     auto total_end_time = std::chrono::high_resolution_clock::now();
     double total_time = std::chrono::duration<double>(total_end_time - total_start_time).count();
 
-    // // Secondary compression using specified compressor
-    // auto comp_start = std::chrono::high_resolution_clock::now();
-    // if (!BitCompressor::compress_file(output_path, output_path, compressor)) {
-    //     throw std::runtime_error("Failed to compress output file: " + output_path);
-    // }
-    // auto comp_end = std::chrono::high_resolution_clock::now();
-    // double comp_time = std::chrono::duration<double>(comp_end - comp_start).count();
+    // Secondary compression using specified compressor
+    auto comp_start = std::chrono::high_resolution_clock::now();
+    if (!BitCompressor::compress_file(output_path, output_path, compressor)) {
+        throw std::runtime_error("Failed to compress output file: " + output_path);
+    }
+    auto comp_end = std::chrono::high_resolution_clock::now();
+    double comp_time = std::chrono::duration<double>(comp_end - comp_start).count();
 
-    // // Print time statistics
-    // std::cout << "\nTime statistics:" << std::endl;
-    // std::cout << "  Read time: " << read_time << " seconds" << std::endl;
-    // std::cout << "  Distance calculation time: " << distance_time << " seconds" << std::endl;
-    // std::cout << "  Q-gram matching time: " << match_time << " seconds" << std::endl;
-    // std::cout << "  Encoding time: " << encoding_time << " seconds" << std::endl;
-    // std::cout << "  Compressor compression time: " << comp_time << " seconds" << std::endl;
-    // std::cout << "  Total time: " << total_time + comp_time << " seconds" << std::endl;
+    // Print time statistics
+    std::cout << "\nTime statistics:" << std::endl;
+    std::cout << "  Read time: " << read_time << " seconds" << std::endl;
+    std::cout << "  Distance calculation time: " << distance_time << " seconds" << std::endl;
+    std::cout << "  Q-gram matching time: " << match_time << " seconds" << std::endl;
+    std::cout << "  Encoding time: " << encoding_time << " seconds" << std::endl;
+    std::cout << "  Compressor compression time: " << comp_time << " seconds" << std::endl;
+    std::cout << "  Total time: " << total_time + comp_time << " seconds" << std::endl;
 
     // // Print matching statistics
     // std::cout << "\nMatching statistics:" << std::endl;
@@ -424,7 +424,7 @@ double main_encoding_compress(const std::string& input_path,
     // std::cout << "  Match rate: " << (100.0 * matched_lines / total_lines) << "%" << std::endl;
 
     // return total_time + comp_time;
-    return total_time;
+    return total_time + comp_time;
 }
 
 #ifdef RECORD_COMPRESS
@@ -443,7 +443,6 @@ int main(int argc, char* argv[]) {
     // Default parameters
     std::string compressor_setting = "none";
     int window_size = 8;
-    int log_length = 256;
     double threshold = 0.06;
     int block_size = 32768;
     std::string distance_setting = "minhash";
@@ -480,14 +479,15 @@ int main(int argc, char* argv[]) {
         }
     }
     
+    
     if (argc > 5 && argv[5] != nullptr) {
         try {
             std::string arg(argv[5]);
             if (!arg.empty()) {
-                log_length = std::stoi(arg);
+                threshold = std::stod(arg);
             }
         } catch (const std::exception& e) {
-            std::cerr << "Invalid log length parameter: " << argv[5] << std::endl;
+            std::cerr << "Invalid threshold parameter: " << argv[5] << std::endl;
             return 1;
         }
     }
@@ -496,29 +496,17 @@ int main(int argc, char* argv[]) {
         try {
             std::string arg(argv[6]);
             if (!arg.empty()) {
-                threshold = std::stod(arg);
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Invalid threshold parameter: " << argv[6] << std::endl;
-            return 1;
-        }
-    }
-    
-    if (argc > 7 && argv[7] != nullptr) {
-        try {
-            std::string arg(argv[7]);
-            if (!arg.empty()) {
                 block_size = std::stoi(arg);
             }
         } catch (const std::exception& e) {
-            std::cerr << "Invalid block size parameter: " << argv[7] << std::endl;
+            std::cerr << "Invalid block size parameter: " << argv[6] << std::endl;
             return 1;
         }
     }
 
     // Parse distance function parameter
-    if (argc > 8 && argv[8] != nullptr) {
-        distance_setting = argv[8];
+    if (argc > 7 && argv[7] != nullptr) {
+        distance_setting = argv[7];
     }
 
     // Set distance type
@@ -530,10 +518,10 @@ int main(int argc, char* argv[]) {
         distance = DistanceType::MINHASH;  // default
     }
 
-    // 添加use_approx参数
-    bool use_approx = true;  // 默认为true
-    if (argc > 9 && argv[9] != nullptr) {
-        std::string approx_setting = argv[9];
+    // Add use_approx parameter
+    bool use_approx = true;  // Default is true
+    if (argc > 8 && argv[8] != nullptr) {
+        std::string approx_setting = argv[8];
         if (approx_setting == "false") {
             use_approx = false;
         }
@@ -543,18 +531,16 @@ int main(int argc, char* argv[]) {
     std::cout << "\nUsing parameters:" << std::endl;
     std::cout << "  Compressor: " << compressor_setting << std::endl;
     std::cout << "  Window size: " << window_size << std::endl;
-    std::cout << "  Log length: " << log_length << std::endl;
     std::cout << "  Threshold: " << threshold << std::endl;
     std::cout << "  Block size: " << block_size << std::endl;
     std::cout << "  Distance function: " << distance_setting << std::endl;
     std::cout << "  Use approximation: " << (use_approx ? "true" : "false") << std::endl;
 
     try {
-        double time_cost = main_encoding_compress(
+        main_encoding_compress(
             input_path, 
             output_path, 
             window_size, 
-            log_length, 
             threshold, 
             block_size,
             compressor,
@@ -562,7 +548,7 @@ int main(int argc, char* argv[]) {
             use_approx
         );
         
-        std::cout << "Compression completed in " << time_cost << " seconds." << std::endl;
+        // std::cout << "Compression completed in " << time_cost << " seconds." << std::endl;
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

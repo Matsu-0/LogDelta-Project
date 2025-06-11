@@ -27,16 +27,9 @@ void cleanup_resources(std::map<std::string, std::vector<double>>& time_sets) {
 }
 
 bool compress_file(const std::string& input_file, const std::string& output_file, CompressorType comp_type) {
-    // Read input file into BitBuffer
-    BitBuffer buffer;
-    if (!buffer.read(input_file)) {
-        std::cerr << "Failed to read input file: " << input_file << std::endl;
-        return false;
-    }
-    
-    // Write compressed output using BitBuffer
-    if (!buffer.write(output_file, "wb", comp_type)) {
-        std::cerr << "Failed to write compressed file: " << output_file << std::endl;
+    // Use BitCompressor's static compress_file method
+    if (!BitCompressor::compress_file(input_file, output_file, comp_type)) {
+        std::cerr << "Failed to compress file: " << input_file << std::endl;
         return false;
     }
     
@@ -45,7 +38,7 @@ bool compress_file(const std::string& input_file, const std::string& output_file
 
 void approx_encoding() {
     std::string input_path = "../datasets/test_dataset/";
-    std::string output_path = "../result/result_approx/test2_compressor/";
+    std::string output_path = "../result_new/result_approx/test2_compressor/";
 
     // First phase: Process with NONE compressor
     std::cout << "\n=== Phase 1: Processing with NONE compressor ===\n" << std::endl;
@@ -76,12 +69,11 @@ void approx_encoding() {
         
         double time = main_encoding_compress(input_file_name, output_file_name,
                                            DefaultParams::WINDOW_SIZE,
-                                           DefaultParams::LOG_LENGTH,
                                            DefaultParams::THRESHOLD,
                                            DefaultParams::BLOCK_SIZE,
                                            CompressorType::NONE,
                                            DefaultParams::DISTANCE,
-                                           true);  // Use approx
+                                           DefaultParams::USE_APPROX);
         
         std::cout << "Time cost: " << time << " seconds" << std::endl;
     }
@@ -141,7 +133,7 @@ void approx_encoding() {
 
 void exact_encoding() {
     std::string input_path = "../datasets/test_dataset/";
-    std::string output_path = "../result/result_exact/test2_compressor/";
+    std::string output_path = "../result_new/result_exact/test2_compressor/";
 
     // First phase: Process with NONE compressor
     std::cout << "\n=== Phase 1: Processing with NONE compressor ===\n" << std::endl;
@@ -172,12 +164,11 @@ void exact_encoding() {
         
         double time = main_encoding_compress(input_file_name, output_file_name,
                                            DefaultParams::WINDOW_SIZE,
-                                           DefaultParams::LOG_LENGTH,
                                            DefaultParams::THRESHOLD,
                                            DefaultParams::BLOCK_SIZE,
                                            CompressorType::NONE,
                                            DefaultParams::DISTANCE,
-                                           false);  // Use exact
+                                           false);  // Set use_approx to false
         
         std::cout << "Time cost: " << time << " seconds" << std::endl;
     }

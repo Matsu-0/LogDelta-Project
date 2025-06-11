@@ -28,7 +28,7 @@ void approx_encoding() {
     }
 
     std::string input_path = "../datasets/test1_data_size/";
-    std::string output_path = "../result/result_approx/test1_data_size/";
+    std::string output_path = "../result_new/result_approx/test1_data_size/";
 
     // Ensure output directory exists
     if (!ensure_directory_exists(output_path)) {
@@ -84,7 +84,6 @@ void approx_encoding() {
             try {
                 double time = main_encoding_compress(input_file_name, output_file_name, 
                                                    DefaultParams::WINDOW_SIZE,
-                                                   DefaultParams::LOG_LENGTH,
                                                    DefaultParams::THRESHOLD,
                                                    p,
                                                    DefaultParams::COMPRESSOR,
@@ -143,7 +142,7 @@ void exact_encoding() {
     }
 
     std::string input_path = "../datasets/test1_data_size/";
-    std::string output_path = "../result/result_exact/test1_data_size/";
+    std::string output_path = "../result_new/result_exact/test1_data_size/";
 
     // Ensure output directory exists
     if (!ensure_directory_exists(output_path)) {
@@ -184,7 +183,6 @@ void exact_encoding() {
             
             double time = main_encoding_compress(input_file_name, output_file_name, 
                                                DefaultParams::WINDOW_SIZE,
-                                               DefaultParams::LOG_LENGTH,
                                                DefaultParams::THRESHOLD,
                                                p,
                                                DefaultParams::COMPRESSOR,

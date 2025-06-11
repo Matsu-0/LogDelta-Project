@@ -14,7 +14,8 @@ SRCS = test3_distance_function.cpp \
        qgram_match.cpp \
        variable_length_substitution.cpp \
        utils.cpp \
-       rle.cpp
+       rle.cpp \
+       ts_2diff.cpp
 
 # Object and dependency files
 OBJS = $(SRCS:.cpp=.o)

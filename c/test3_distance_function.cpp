@@ -37,7 +37,7 @@ void approx_encoding() {
 
     // Create result directories for each distance function
     for (const auto& [dist_name, _] : distance_functions) {
-        std::string output_path = "../result/result_approx/test3_distance/" + dist_name + "/";
+        std::string output_path = "../result_new/result_approx/test3_distance/" + dist_name + "/";
         if (!ensure_directory_exists(output_path)) {
             std::cerr << "Failed to create output directory: " << output_path << std::endl;
             return;
@@ -48,7 +48,7 @@ void approx_encoding() {
     for (const auto& [dist_name, dist_type] : distance_functions) {
         std::cout << "\n=== Testing distance function: " << dist_name << " ===" << std::endl;
         
-        std::string output_path = "../result/result_approx/test3_distance/" + dist_name + "/";
+        std::string output_path = "../result_new/result_approx/test3_distance/" + dist_name + "/";
         std::map<std::string, std::vector<double>> time_sets;
 
         // Calculate total tasks
@@ -80,9 +80,8 @@ void approx_encoding() {
                     continue;
                 }
                 
-                double time = main_encoding_compress(input_file_name, output_file_name,
+                double time = main_encoding_compress(input_file_name, output_file_name, 
                                                    DefaultParams::WINDOW_SIZE,
-                                                   DefaultParams::LOG_LENGTH,
                                                    p,
                                                    DefaultParams::BLOCK_SIZE,
                                                    DefaultParams::COMPRESSOR,
@@ -127,7 +126,7 @@ void exact_encoding() {
 
     // Create result directories for each distance function
     for (const auto& [dist_name, _] : distance_functions) {
-        std::string output_path = "../result/result_exact/test3_distance/" + dist_name + "/";
+        std::string output_path = "../result_new/result_exact/test3_distance/" + dist_name + "/";
         if (!ensure_directory_exists(output_path)) {
             std::cerr << "Failed to create output directory: " << output_path << std::endl;
             return;
@@ -138,7 +137,7 @@ void exact_encoding() {
     for (const auto& [dist_name, dist_type] : distance_functions) {
         std::cout << "\n=== Testing distance function: " << dist_name << " ===" << std::endl;
         
-        std::string output_path = "../result/result_exact/test3_distance/" + dist_name + "/";
+        std::string output_path = "../result_new/result_exact/test3_distance/" + dist_name + "/";
         std::map<std::string, std::vector<double>> time_sets;
 
         // Calculate total tasks
@@ -170,9 +169,8 @@ void exact_encoding() {
                     continue;
                 }
                 
-                double time = main_encoding_compress(input_file_name, output_file_name,
+                double time = main_encoding_compress(input_file_name, output_file_name, 
                                                    DefaultParams::WINDOW_SIZE,
-                                                   DefaultParams::LOG_LENGTH,
                                                    p,
                                                    DefaultParams::BLOCK_SIZE,
                                                    DefaultParams::COMPRESSOR,

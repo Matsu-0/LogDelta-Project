@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include <chrono>
+#include <cmath>
 #include "record_compress.hpp"
 #include "utils.hpp"
 
@@ -21,14 +22,14 @@ void cleanup_resources(std::map<std::string, std::vector<double>>& time_sets) {
 }
 
 void approx_encoding() {
-    // Define parameter range (powers of 2: 16, 32, 64, 128, 256, 512, 1024)
+    // Define parameter range from 2^10 to 2^20, doubling each time
     std::vector<int> parameters;
-    for (int p = 16; p <= 1024; p *= 2) {
-        parameters.push_back(p);
+    for (int i = 10; i <= 20; i++) {
+        parameters.push_back(1 << i);  // 2^i
     }
 
     std::string input_path = "../datasets/test_dataset/";
-    std::string output_path = "../result/result_approx/test4_log_length/";
+    std::string output_path = "../result_new/result_approx/test4_block_size/";
 
     // Ensure output directory exists
     if (!ensure_directory_exists(output_path)) {
@@ -57,61 +58,93 @@ void approx_encoding() {
         for (int p : parameters) {
             current_task++;
             std::cout << "Progress: [" << current_task << "/" << total_tasks << "] "
-                      << "Dataset: " << d << ", Log length: " << p << std::endl;
+                      << "Dataset: " << d << ", Block size: " << p << " (2^" << (int)(log2(p)) << ")" << std::endl;
 
             std::string input_file_name = input_path + d + ".log";
-            std::string output_file_name = output_path + d + "/" + d + "_" + std::to_string(p);
+            std::string output_file_name = output_path + d + "/" + d + "_" + std::to_string(p) + "_" + std::to_string((int)(log2(p)));
             
             if (!std::ifstream(input_file_name)) {
                 std::cerr << "Input file does not exist: " << input_file_name << std::endl;
                 continue;
             }
             
-            // Use fixed window_size=8, threshold=0.06, block_size=32768, only change log_length
-            double time = main_encoding_compress(input_file_name, output_file_name,
-                                               DefaultParams::WINDOW_SIZE,
-                                               p,
-                                               DefaultParams::THRESHOLD,
-                                               DefaultParams::BLOCK_SIZE,
-                                               DefaultParams::COMPRESSOR,
-                                               DefaultParams::DISTANCE,
-                                               DefaultParams::USE_APPROX);
-            time_list.push_back(time);
-            
-            std::cout << "Time cost: " << time << " seconds" << std::endl;
+            if (p <= 0) {
+                std::cerr << "Invalid parameter value: " << p << std::endl;
+                continue;
+            }
+
+            // Check if output file path is writable
+            std::ofstream test_output(output_file_name);
+            if (!test_output) {
+                std::cerr << "Cannot write to output file: " << output_file_name << std::endl;
+                continue;
+            }
+            test_output.close();
+
+            // Wrap main_encoding_compress call in try-catch block
+            try {
+                double time = main_encoding_compress(input_file_name, output_file_name, 
+                                                   DefaultParams::WINDOW_SIZE,
+                                                   DefaultParams::THRESHOLD,
+                                                   p,  // block_size
+                                                   DefaultParams::COMPRESSOR,
+                                                   DefaultParams::DISTANCE,
+                                                   DefaultParams::USE_APPROX);
+                time_list.push_back(time);
+                std::cout << "Time cost: " << time << " seconds" << std::endl;
+            } catch (const std::exception& e) {
+                std::cerr << "Error processing " << d << " with block size " << p 
+                          << ": " << e.what() << std::endl;
+                continue;
+            }
         }
         time_sets[d] = time_list;
+        std::cout << std::endl;
+    }
+
+    // Before writing to CSV, validate the data
+    for (const auto& d : datasets) {
+        if (time_sets.find(d) == time_sets.end()) {
+            std::cerr << "Warning: Missing data for dataset " << d << std::endl;
+            continue;
+        }
+        if (time_sets[d].size() != parameters.size()) {
+            std::cerr << "Warning: Incomplete data for dataset " << d 
+                      << " (expected " << parameters.size() 
+                      << " entries, got " << time_sets[d].size() << ")" << std::endl;
+        }
     }
 
     // Write results to CSV file
     std::string csv_path = output_path + "time_cost.csv";
     std::vector<std::string> first_column;
-    first_column.push_back("LogLength");  // Header
+    first_column.push_back("Block Size");  // Header
     for (int p : parameters) {
-        first_column.push_back(std::to_string(p));
+        first_column.push_back(std::to_string(p) + " (2^" + std::to_string((int)(log2(p))) + ")");
     }
+
+    std::cout << "Preparing to write CSV..." << std::endl;
+    std::cout << "Number of datasets: " << datasets.size() << std::endl;
+    std::cout << "Number of block sizes: " << parameters.size() << std::endl;
+    std::cout << "Size of time_sets: " << time_sets.size() << std::endl;
 
     bool write_success = write_csv(csv_path, time_sets, datasets, first_column);
-    
-    // Clean up resources before exit
-    cleanup_resources(time_sets);
 
-    if (write_success) {
-        std::cout << "\nAll tasks completed. Results written to: " << csv_path << std::endl;
-    } else {
-        std::cerr << "\nFailed to write results to: " << csv_path << std::endl;
-    }
+    std::cout << "CSV write completed with status: " << (write_success ? "success" : "failure") << std::endl;
+
+    // Finally clean up
+    cleanup_resources(time_sets);
 }
 
 void exact_encoding() {
-    // Define parameter range (powers of 2: 16, 32, 64, 128, 256, 512, 1024)
+    // Define parameter range from 2^10 to 2^20, doubling each time
     std::vector<int> parameters;
-    for (int p = 16; p <= 1024; p *= 2) {
-        parameters.push_back(p);
+    for (int i = 10; i <= 20; i++) {
+        parameters.push_back(1 << i);  // 2^i
     }
 
     std::string input_path = "../datasets/test_dataset/";
-    std::string output_path = "../result/result_exact/test4_log_length/";
+    std::string output_path = "../result_new/result_exact/test4_block_size/";
 
     // Ensure output directory exists
     if (!ensure_directory_exists(output_path)) {
@@ -140,21 +173,20 @@ void exact_encoding() {
         for (int p : parameters) {
             current_task++;
             std::cout << "Progress: [" << current_task << "/" << total_tasks << "] "
-                      << "Dataset: " << d << ", Log length: " << p << std::endl;
+                      << "Dataset: " << d << ", Block size: " << p << " (2^" << (int)(log2(p)) << ")" << std::endl;
 
             std::string input_file_name = input_path + d + ".log";
-            std::string output_file_name = output_path + d + "/" + d + "_" + std::to_string(p);
+            std::string output_file_name = output_path + d + "/" + d + "_" + std::to_string(p) + "_" + std::to_string((int)(log2(p)));
             
             if (!std::ifstream(input_file_name)) {
                 std::cerr << "Input file does not exist: " << input_file_name << std::endl;
                 continue;
             }
             
-            double time = main_encoding_compress(input_file_name, output_file_name,
+            double time = main_encoding_compress(input_file_name, output_file_name, 
                                                DefaultParams::WINDOW_SIZE,
-                                               p,
                                                DefaultParams::THRESHOLD,
-                                               DefaultParams::BLOCK_SIZE,
+                                               p,  // block_size
                                                DefaultParams::COMPRESSOR,
                                                DefaultParams::DISTANCE,
                                                false);  // Set use_approx to false
@@ -165,24 +197,35 @@ void exact_encoding() {
         time_sets[d] = time_list;
     }
 
+    // Before writing to CSV, validate the data
+    for (const auto& d : datasets) {
+        if (time_sets.find(d) == time_sets.end()) {
+            std::cerr << "Warning: Missing data for dataset " << d << std::endl;
+            continue;
+        }
+        if (time_sets[d].size() != parameters.size()) {
+            std::cerr << "Warning: Incomplete data for dataset " << d 
+                      << " (expected " << parameters.size() 
+                      << " entries, got " << time_sets[d].size() << ")" << std::endl;
+        }
+    }
+
     // Write results to CSV file
     std::string csv_path = output_path + "time_cost.csv";
     std::vector<std::string> first_column;
-    first_column.push_back("LogLength");  // Header
+    first_column.push_back("Block Size");  // Header
     for (int p : parameters) {
-        first_column.push_back(std::to_string(p));
+        first_column.push_back(std::to_string(p) + " (2^" + std::to_string((int)(log2(p))) + ")");
     }
 
-    bool write_success = write_csv(csv_path, time_sets, datasets, first_column);
-    
-    // Clean up resources before exit
-    cleanup_resources(time_sets);
-
-    if (write_success) {
+    if (write_csv(csv_path, time_sets, datasets, first_column)) {
         std::cout << "\nAll tasks completed. Results written to: " << csv_path << std::endl;
     } else {
         std::cerr << "\nFailed to write results to: " << csv_path << std::endl;
     }
+    
+    // Clean up resources
+    cleanup_resources(time_sets);
 }
 
 int main() {
@@ -191,13 +234,19 @@ int main() {
         approx_encoding();
         std::cout << "\n=== Approximate Encoding Completed ===\n" << std::endl;
         
-        std::cout << "\n=== Starting Exact Encoding ===\n" << std::endl;
-        exact_encoding();
+        // Add a small delay to ensure resources are properly released
+        std::cout.flush();
         
-        std::cout << "\n=== All Tasks Completed ===\n" << std::endl;
+        // std::cout << "\n=== Starting Exact Encoding ===\n" << std::endl;
+        // exact_encoding();
+        
+        // std::cout << "\n=== All Tasks Completed ===\n" << std::endl;
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    } catch (...) {
+        std::cerr << "Unknown error occurred" << std::endl;
         return 1;
     }
 }

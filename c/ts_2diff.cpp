@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 #include <bitset>
 
-constexpr int block_size = 1024;
+constexpr int block_size = 64;
 
 // Encode a single block of integers into the bit stream
 size_t encode_block(BitOutBuffer& stream, const std::vector<int>& data) {
@@ -23,7 +23,7 @@ size_t encode_block(BitOutBuffer& stream, const std::vector<int>& data) {
         stream.encode(data[0], 32);
         stream.encode(0, 32);
         stream.encode(0, 12);
-        return 32 + 32 + 12;
+        return (32 + 32 + 12 + 7) / 8;  // 转换为字节数
     }
 
     std::vector<int> delta(data.size() - 1);
@@ -34,7 +34,8 @@ size_t encode_block(BitOutBuffer& stream, const std::vector<int>& data) {
     int max_delta = *std::max_element(delta.begin(), delta.end());
     int bit_len = std::max(max_delta - min_delta, 1);
     int bit_width = 0;
-    while ((1 << bit_width) <= bit_len) ++bit_width;
+    while ((1 << bit_width) <= bit_len && bit_width < 32) ++bit_width;
+    if (bit_width == 0) bit_width = 1;  // 确保至少使用1位
 
     // std::cout << "[ENCODE BLOCK] first_value=" << data[0]
     //           << ", min_delta=" << min_delta
@@ -48,10 +49,9 @@ size_t encode_block(BitOutBuffer& stream, const std::vector<int>& data) {
     for (size_t i = 0; i < delta.size(); ++i) {
         int enc = delta[i] - min_delta;
         stream.encode(enc, bit_width);
-
     }
     stream.pack();  // 确保所有位都被写入
-    return 32 + 32 + 12 + 8 + bit_width * delta.size();
+    return (32 + 32 + 12 + 8 + bit_width * delta.size() + 7) / 8;  // 转换为字节数
 }
 
 // Encode a full integer vector to file using ts2diff algorithm
@@ -59,14 +59,14 @@ size_t ts2diff_encode(const std::vector<int>& data, BitOutBuffer& stream) {
     size_t bcnt = data.size() / block_size;
     size_t realBcnt = (data.size() + block_size - 1) / block_size;
     stream.encode((int)realBcnt, 32);
-    size_t total_bits = 32;
+    size_t total_bytes = 4;  // 初始32位转换为字节
     for (size_t i = 0; i < bcnt; ++i) {
-        total_bits += encode_block(stream, std::vector<int>(data.begin() + i * block_size, data.begin() + (i + 1) * block_size));
+        total_bytes += encode_block(stream, std::vector<int>(data.begin() + i * block_size, data.begin() + (i + 1) * block_size));
     }
     if (bcnt * block_size < data.size()) {
-        total_bits += encode_block(stream, std::vector<int>(data.begin() + bcnt * block_size, data.end()));
+        total_bytes += encode_block(stream, std::vector<int>(data.begin() + bcnt * block_size, data.end()));
     }
-    return total_bits;
+    return total_bytes;
 }
 
 // Decode a single block of integers from the bit stream
@@ -75,15 +75,15 @@ std::vector<int> decode_block(BitInBuffer& stream) {
     std::vector<int> result;
     int first_value = stream.decode(32);
     int min_delta = stream.decode(32);
-    // if (static_cast<uint32_t>(min_delta) >= (1U << 31)) {
-    //     min_delta = min_delta - (1LL << 32);
-    // }
     int delta_length = stream.decode(12);
     if (delta_length == 0) {
         result.push_back(first_value);
         return result;
     }
     int bit_width = stream.decode(8);
+    if (bit_width < 1 || bit_width > 32) {
+        throw std::runtime_error("Invalid bit width: " + std::to_string(bit_width));
+    }
 
     // std::cout << "[DECODE BLOCK] first_value=" << first_value
     //           << ", min_delta=" << min_delta
@@ -94,7 +94,6 @@ std::vector<int> decode_block(BitInBuffer& stream) {
     for (int i = 0; i < delta_length; ++i) {
         int d = stream.decode(bit_width);
         delta[i] = d + min_delta;
-
     }
     // 累加还原
     result.reserve(delta_length + 1);
@@ -116,7 +115,7 @@ std::vector<int> ts2diff_decode(BitInBuffer& stream) {
         std::vector<int> block = decode_block(stream);
         result.insert(result.end(), block.begin(), block.end());
     }
-
+    stream.align();  // 确保解码后对齐到字节边界
     return result;
 }
 
@@ -176,7 +175,6 @@ void test_performance(const std::vector<int>& data, const std::string& test_name
     std::vector<int> decoded = ts2diff_decode(inbuf);
     auto decode_end = std::chrono::high_resolution_clock::now();
 
-
     double encode_time = std::chrono::duration<double>(encode_end - start).count();
     double decode_time = std::chrono::duration<double>(decode_end - decode_start).count();
 
@@ -186,13 +184,65 @@ void test_performance(const std::vector<int>& data, const std::string& test_name
 
     std::cout << "\nPerformance test: " << test_name << std::endl;
     std::cout << "Data size: " << data.size() << " elements" << std::endl;
-    std::cout << "Encoded size: " << encoded_size << " bits" << std::endl;
+    std::cout << "Encoded size: " << encoded_size << " bytes" << std::endl;
     std::cout << "Encode time: " << encode_time << " seconds" << std::endl;
     std::cout << "Decode time: " << decode_time << " seconds" << std::endl;
     std::cout << "Original size: " << original_size << " bytes (int64 per value)" << std::endl;
     std::cout << "Compressed file size: " << compressed_size << " bytes" << std::endl;
     std::cout << "Compression ratio: " << ratio << std::endl;
     std::cout << "Test " << (verify_result(data, decoded) ? "PASSED" : "FAILED") << std::endl;
+}
+
+// 测试混合编码
+void test_mixed_encoding() {
+    std::cout << "\nTesting mixed encoding..." << std::endl;
+    
+    // 准备测试数据
+    std::vector<int> data = {1, 3, 5, 7, 9, 11, 13, 15};
+    int extra_num1 = 42;
+    int extra_num2 = 100;
+    
+    // 编码
+    BitOutBuffer outbuf;
+    size_t encoded_size = ts2diff_encode(data, outbuf);
+    std::cout << "ts2diff encoded size: " << encoded_size << " bytes" << std::endl;
+    
+    outbuf.encode(extra_num1, 32);
+    outbuf.encode(extra_num2, 32);
+    
+    // 写入文件
+    std::string filename = "mixed_test.bin";
+    outbuf.write(filename);
+    
+    // 读取和解码
+    BitInBuffer inbuf;
+    inbuf.read(filename);
+    
+    // 先解码ts2diff数据
+    std::cout << "Decoding ts2diff data..." << std::endl;
+    std::vector<int> decoded = ts2diff_decode(inbuf);
+    std::cout << "ts2diff decode completed, decoded size: " << decoded.size() << std::endl;
+    
+    // 再解码额外的两个数
+    std::cout << "Decoding extra numbers..." << std::endl;
+    int decoded_num1 = inbuf.decode(32);
+    int decoded_num2 = inbuf.decode(32);
+    
+    // 验证结果
+    std::cout << "Original data: ";
+    print_vector("data", data);
+    std::cout << "Extra numbers: " << extra_num1 << ", " << extra_num2 << std::endl;
+    
+    std::cout << "Decoded data: ";
+    print_vector("decoded", decoded);
+    std::cout << "Decoded extra numbers: " << decoded_num1 << ", " << decoded_num2 << std::endl;
+    
+    bool data_match = verify_result(data, decoded);
+    bool extra_match = (extra_num1 == decoded_num1) && (extra_num2 == decoded_num2);
+    
+    std::cout << "Data match: " << (data_match ? "PASSED" : "FAILED") << std::endl;
+    std::cout << "Extra numbers match: " << (extra_match ? "PASSED" : "FAILED") << std::endl;
+    std::cout << "Total test: " << (data_match && extra_match ? "PASSED" : "FAILED") << std::endl;
 }
 
 int main() {
@@ -233,6 +283,9 @@ int main() {
     std::vector<int> test8;
     for (int i = 0; i < 300000; ++i) test8.push_back(i % 3 == 0 ? -1 : 1);
     test_performance(test8, "test8");
+
+    // Test case 9: Mixed encoding test
+    test_mixed_encoding();
 
     return 0;
 }
