@@ -13,8 +13,8 @@
 const std::vector<std::string> datasets = {"Android", "Apache", "HPC", "Mac", "OpenStack", "Spark", "Zookeeper", "SSH", "Linux", "Proxifier", "Thunderbird"};
 const std::vector<std::pair<std::string, CompressorType>> compressors = {
     {"LZMA", CompressorType::LZMA},
-    {"GZIP", CompressorType::GZIP},
-    {"ZSTD", CompressorType::ZSTD}
+    {"ZSTD", CompressorType::ZSTD},
+    {"LZ4", CompressorType::LZ4}
 };
 
 void cleanup_resources(std::map<std::string, std::vector<double>>& time_sets) {
@@ -37,260 +37,371 @@ bool compress_file(const std::string& input_file, const std::string& output_file
 }
 
 void approx_encoding() {
-    std::string input_path = "../datasets/test_dataset/";
-    std::string output_path = "../result_new/result_approx/test2_compressor/";
+    std::string input_path = "../../datasets/test_dataset/";
+    std::string base_output_path = "../result_approx/";
 
-    // First phase: Process with NONE compressor
-    std::cout << "\n=== Phase 1: Processing with NONE compressor ===\n" << std::endl;
-    
-    // Ensure output directory exists
-    if (!ensure_directory_exists(output_path)) {
-        std::cerr << "Failed to create output directory: " << output_path << std::endl;
-        return;
-    }
+    std::string lzma_output_path = base_output_path + "lzma/" ;
+    std::string zstd_output_path = base_output_path + "zstd/" + "level_3/";
+    std::string lz4_output_path = base_output_path + "lz4/" + "level_9/";
 
-    // Process each dataset with NONE compressor
-    for (const auto& d : datasets) {
-        std::string tmp_path = output_path + d;
-        if (!ensure_directory_exists(tmp_path)) {
-            std::cerr << "Failed to create directory: " << tmp_path << std::endl;
-            continue;
-        }
-
-        std::cout << "\n=== Processing dataset: " << d << " with NONE compressor ===" << std::endl;
-
-        std::string input_file_name = input_path + d + ".log";
-        std::string output_file_name = output_path + d + "/" + d + "_NONE";
-        
-        if (!std::ifstream(input_file_name)) {
-            std::cerr << "Input file does not exist: " << input_file_name << std::endl;
-            continue;
-        }
-        
-        double time = main_encoding_compress(input_file_name, output_file_name,
-                                           DefaultParams::WINDOW_SIZE,
-                                           DefaultParams::THRESHOLD,
-                                           DefaultParams::BLOCK_SIZE,
-                                           CompressorType::NONE,
-                                           DefaultParams::DISTANCE,
-                                           DefaultParams::USE_APPROX);
-        
-        std::cout << "Time cost: " << time << " seconds" << std::endl;
-    }
-
-    // Second phase: Process NONE results with other compressors
-    std::cout << "\n=== Phase 2: Processing with other compressors ===\n" << std::endl;
+    std::cout << "\n=== Processing datasets with different compressors ===\n" << std::endl;
     
     std::map<std::string, std::vector<double>> time_sets;
 
     for (const auto& d : datasets) {
+        std::cout << "\n=== Processing dataset: " << d << " ===" << std::endl;
         std::vector<double> time_list;
-        std::string none_file = output_path + d + "/" + d + "_NONE";
+        std::string input_file_name = input_path + d + ".log";
         
-        for (const auto& [comp_name, comp_type] : compressors) {
-            std::cout << "\n=== Processing " << d << " with " << comp_name << " ===" << std::endl;
-            
-            std::string output_file = output_path + d + "/" + d + "_" + comp_name;
-            
-            if (!std::ifstream(none_file)) {
-                std::cerr << "NONE compressed file not found: " << none_file << std::endl;
-                continue;
-            }
+        if (!std::ifstream(input_file_name)) {
+            std::cerr << "Input file does not exist: " << input_file_name << std::endl;
+            time_list = {-1, -1, -1};  // All compressors failed
+            time_sets[d] = time_list;
+            continue;
+        }
+
+        // Process with LZMA
+        
+        if (!ensure_directory_exists(lzma_output_path)) {
+            std::cerr << "Failed to create directory: " << lzma_output_path << std::endl;
+            time_list.push_back(-1);
+        } else {
+            std::string lzma_output_file = lzma_output_path + d;
             
             auto start = std::chrono::high_resolution_clock::now();
-            bool success = compress_file(none_file, output_file, comp_type);
+            double time = main_encoding_compress(input_file_name, lzma_output_file,
+                                               DefaultParams::WINDOW_SIZE,
+                                               DefaultParams::THRESHOLD,
+                                               DefaultParams::BLOCK_SIZE,
+                                               CompressorType::LZMA,
+                                               DefaultParams::DISTANCE,
+                                               DefaultParams::USE_APPROX);
             auto end = std::chrono::high_resolution_clock::now();
-            double time = std::chrono::duration<double>(end - start).count();
+            double total_time = std::chrono::duration<double>(end - start).count();
             
-            if (success) {
-                time_list.push_back(time);
-                std::cout << "Time cost: " << time << " seconds" << std::endl;
+            if (time >= 0) {
+                time_list.push_back(total_time);
+                std::cout << "LZMA processing completed - Total time: " << total_time << " seconds" << std::endl;
             } else {
-                std::cerr << "Compression failed for " << comp_name << std::endl;
+                std::cerr << "LZMA processing failed" << std::endl;
                 time_list.push_back(-1);
             }
         }
+
+        // Process with ZSTD
+
+        if (!ensure_directory_exists(zstd_output_path)) {
+            std::cerr << "Failed to create directory: " << zstd_output_path << std::endl;
+            time_list.push_back(-1);
+        } else {
+            std::string zstd_output_file = zstd_output_path + d;
+            
+            auto start = std::chrono::high_resolution_clock::now();
+            double time = main_encoding_compress(input_file_name, zstd_output_file,
+                                               DefaultParams::WINDOW_SIZE,
+                                               DefaultParams::THRESHOLD,
+                                               DefaultParams::BLOCK_SIZE,
+                                               CompressorType::ZSTD,
+                                               DefaultParams::DISTANCE,
+                                               DefaultParams::USE_APPROX);
+            auto end = std::chrono::high_resolution_clock::now();
+            double total_time = std::chrono::duration<double>(end - start).count();
+            
+            if (time >= 0) {
+                time_list.push_back(total_time);
+                std::cout << "ZSTD processing completed - Total time: " << total_time << " seconds" << std::endl;
+            } else {
+                std::cerr << "ZSTD processing failed" << std::endl;
+                time_list.push_back(-1);
+            }
+        }
+
+        // Process with LZ4
+
+        if (!ensure_directory_exists(lz4_output_path)) {
+            std::cerr << "Failed to create directory: " << lz4_output_path << std::endl;
+            time_list.push_back(-1);
+        } else {
+            std::string lz4_output_file = lz4_output_path + d;
+            
+            auto start = std::chrono::high_resolution_clock::now();
+            double time = main_encoding_compress(input_file_name, lz4_output_file,
+                                               DefaultParams::WINDOW_SIZE,
+                                               DefaultParams::THRESHOLD,
+                                               DefaultParams::BLOCK_SIZE,
+                                               CompressorType::LZ4,
+                                               DefaultParams::DISTANCE,
+                                               DefaultParams::USE_APPROX);
+            auto end = std::chrono::high_resolution_clock::now();
+            double total_time = std::chrono::duration<double>(end - start).count();
+            
+            if (time >= 0) {
+                time_list.push_back(total_time);
+                std::cout << "LZ4 processing completed - Total time: " << total_time << " seconds" << std::endl;
+            } else {
+                std::cerr << "LZ4 processing failed" << std::endl;
+                time_list.push_back(-1);
+            }
+        }
+
         time_sets[d] = time_list;
     }
 
-    // Write compression times to CSV
-    std::string csv_path = output_path + "time_cost.csv";
-    std::vector<std::string> first_column;
-    first_column.push_back("Compressor");
-    for (const auto& [name, _] : compressors) {
-        first_column.push_back(name);
-    }
+    // Write compression times to separate CSV files for each compressor
+    std::vector<std::string> column_names = {"Compression_Time"};
     
-    bool write_success = write_csv(csv_path, time_sets, datasets, first_column);
+    // Write LZMA results
+    std::string lzma_csv_path = lzma_output_path + "/time_cost.csv";
+    std::map<std::string, std::vector<double>> lzma_time_sets;
+    std::vector<double> lzma_times;
+    for (const auto& d : datasets) {
+        if (time_sets.find(d) != time_sets.end() && time_sets[d].size() > 0) {
+            lzma_times.push_back(time_sets[d][0]); // LZMA is first in the list
+        } else {
+            lzma_times.push_back(-1); // Failed case
+        }
+    }
+    lzma_time_sets["Compression_Time"] = lzma_times;
+    bool lzma_write_success = write_csv(lzma_csv_path, lzma_time_sets, column_names, datasets);
+    
+    // Write ZSTD results
+    std::string zstd_csv_path = zstd_output_path + "/time_cost.csv";
+    std::map<std::string, std::vector<double>> zstd_time_sets;
+    std::vector<double> zstd_times;
+    for (const auto& d : datasets) {
+        if (time_sets.find(d) != time_sets.end() && time_sets[d].size() > 1) {
+            zstd_times.push_back(time_sets[d][1]); // ZSTD is second in the list
+        } else {
+            zstd_times.push_back(-1); // Failed case
+        }
+    }
+    zstd_time_sets["Compression_Time"] = zstd_times;
+    bool zstd_write_success = write_csv(zstd_csv_path, zstd_time_sets, column_names, datasets);
+    
+    // Write LZ4 results
+    std::string lz4_csv_path = lz4_output_path + "/time_cost.csv";
+    std::map<std::string, std::vector<double>> lz4_time_sets;
+    std::vector<double> lz4_times;
+    for (const auto& d : datasets) {
+        if (time_sets.find(d) != time_sets.end() && time_sets[d].size() > 2) {
+            lz4_times.push_back(time_sets[d][2]); // LZ4 is third in the list
+        } else {
+            lz4_times.push_back(-1); // Failed case
+        }
+    }
+    lz4_time_sets["Compression_Time"] = lz4_times;
+    bool lz4_write_success = write_csv(lz4_csv_path, lz4_time_sets, column_names, datasets);
+    
     cleanup_resources(time_sets);
+    cleanup_resources(lzma_time_sets);
+    cleanup_resources(zstd_time_sets);
+    cleanup_resources(lz4_time_sets);
 
-    if (write_success) {
-        std::cout << "\nAll tasks completed. Results written to: " << csv_path << std::endl;
+    if (lzma_write_success && zstd_write_success && lz4_write_success) {
+        std::cout << "\nAll tasks completed. Results written to separate CSV files:" << std::endl;
+        std::cout << "LZMA results saved in: " << lzma_csv_path << std::endl;
+        std::cout << "ZSTD results saved in: " << zstd_csv_path << std::endl;
+        std::cout << "LZ4 results saved in: " << lz4_csv_path << std::endl;
     } else {
-        std::cerr << "\nFailed to write results to: " << csv_path << std::endl;
+        std::cerr << "\nSome CSV files failed to write:" << std::endl;
+        if (!lzma_write_success) std::cerr << "LZMA CSV write failed" << std::endl;
+        if (!zstd_write_success) std::cerr << "ZSTD CSV write failed" << std::endl;
+        if (!lz4_write_success) std::cerr << "LZ4 CSV write failed" << std::endl;
     }
 }
 
 void exact_encoding() {
     std::string input_path = "../datasets/test_dataset/";
-    std::string output_path = "../result_new/result_exact/test2_compressor/";
+    std::string base_output_path = "../result_exact/";
 
-    // First phase: Process with NONE compressor
-    std::cout << "\n=== Phase 1: Processing with NONE compressor ===\n" << std::endl;
-    
-    // Ensure output directory exists
-    if (!ensure_directory_exists(output_path)) {
-        std::cerr << "Failed to create output directory: " << output_path << std::endl;
-        return;
-    }
+    std::string lzma_output_path = base_output_path + "lzma/" ;
+    std::string zstd_output_path = base_output_path + "zstd/" + "level_1/";
+    std::string lz4_output_path = base_output_path + "lz4/" + "level_1/";
 
-    // Process each dataset with NONE compressor
-    for (const auto& d : datasets) {
-        std::string tmp_path = output_path + d;
-        if (!ensure_directory_exists(tmp_path)) {
-            std::cerr << "Failed to create directory: " << tmp_path << std::endl;
-            continue;
-        }
-
-        std::cout << "\n=== Processing dataset: " << d << " with NONE compressor ===" << std::endl;
-
-        std::string input_file_name = input_path + d + ".log";
-        std::string output_file_name = output_path + d + "/" + d + "_NONE";
-        
-        if (!std::ifstream(input_file_name)) {
-            std::cerr << "Input file does not exist: " << input_file_name << std::endl;
-            continue;
-        }
-        
-        double time = main_encoding_compress(input_file_name, output_file_name,
-                                           DefaultParams::WINDOW_SIZE,
-                                           DefaultParams::THRESHOLD,
-                                           DefaultParams::BLOCK_SIZE,
-                                           CompressorType::NONE,
-                                           DefaultParams::DISTANCE,
-                                           false);  // Set use_approx to false
-        
-        std::cout << "Time cost: " << time << " seconds" << std::endl;
-    }
-
-    // Second phase: Process NONE results with other compressors
-    std::cout << "\n=== Phase 2: Processing with other compressors ===\n" << std::endl;
+    std::cout << "\n=== Processing datasets with exact encoding ===\n" << std::endl;
     
     std::map<std::string, std::vector<double>> time_sets;
 
     for (const auto& d : datasets) {
+        std::cout << "\n=== Processing dataset: " << d << " ===" << std::endl;
         std::vector<double> time_list;
-        std::string none_file = output_path + d + "/" + d + "_NONE";
+        std::string input_file_name = input_path + d + ".log";
         
-        for (const auto& [comp_name, comp_type] : compressors) {
-            std::cout << "\n=== Processing " << d << " with " << comp_name << " ===" << std::endl;
-            
-            std::string output_file = output_path + d + "/" + d + "_" + comp_name;
-            
-            if (!std::ifstream(none_file)) {
-                std::cerr << "NONE compressed file not found: " << none_file << std::endl;
-                continue;
-            }
+        if (!std::ifstream(input_file_name)) {
+            std::cerr << "Input file does not exist: " << input_file_name << std::endl;
+            time_list = {-1, -1, -1};  // All compressors failed
+            time_sets[d] = time_list;
+            continue;
+        }
+
+        // Process with LZMA
+    
+        if (!ensure_directory_exists(lzma_output_path)) {
+            std::cerr << "Failed to create directory: " << lzma_output_path << std::endl;
+            time_list.push_back(-1);
+        } else {
+            std::string lzma_output_file = lzma_output_path + d + "_LZMA";
             
             auto start = std::chrono::high_resolution_clock::now();
-            bool success = compress_file(none_file, output_file, comp_type);
+            double time = main_encoding_compress(input_file_name, lzma_output_file,
+                                               DefaultParams::WINDOW_SIZE,
+                                               DefaultParams::THRESHOLD,
+                                               DefaultParams::BLOCK_SIZE,
+                                               CompressorType::LZMA,
+                                               DefaultParams::DISTANCE,
+                                               false);  // Set use_approx to false
             auto end = std::chrono::high_resolution_clock::now();
-            double time = std::chrono::duration<double>(end - start).count();
+            double total_time = std::chrono::duration<double>(end - start).count();
             
-            if (success) {
-                time_list.push_back(time);
-                std::cout << "Time cost: " << time << " seconds" << std::endl;
+            if (time >= 0) {
+                time_list.push_back(total_time);
+                std::cout << "LZMA processing completed - Total time: " << total_time << " seconds" << std::endl;
             } else {
-                std::cerr << "Compression failed for " << comp_name << std::endl;
+                std::cerr << "LZMA processing failed" << std::endl;
                 time_list.push_back(-1);
             }
         }
+
+        // Process with ZSTD
+        if (!ensure_directory_exists(zstd_output_path)) {
+            std::cerr << "Failed to create directory: " << zstd_output_path << std::endl;
+            time_list.push_back(-1);
+        } else {
+            std::string zstd_output_file = zstd_output_path + d + "_ZSTD";
+            
+            auto start = std::chrono::high_resolution_clock::now();
+            double time = main_encoding_compress(input_file_name, zstd_output_file,
+                                               DefaultParams::WINDOW_SIZE,
+                                               DefaultParams::THRESHOLD,
+                                               DefaultParams::BLOCK_SIZE,
+                                               CompressorType::ZSTD,
+                                               DefaultParams::DISTANCE,
+                                               false);  // Set use_approx to false
+            auto end = std::chrono::high_resolution_clock::now();
+            double total_time = std::chrono::duration<double>(end - start).count();
+            
+            if (time >= 0) {
+                time_list.push_back(total_time);
+                std::cout << "ZSTD processing completed - Total time: " << total_time << " seconds" << std::endl;
+            } else {
+                std::cerr << "ZSTD processing failed" << std::endl;
+                time_list.push_back(-1);
+            }
+        }
+
+        // Process with LZ4
+        if (!ensure_directory_exists(lz4_output_path)) {
+            std::cerr << "Failed to create directory: " << lz4_output_path << std::endl;
+            time_list.push_back(-1);
+        } else {
+            std::string lz4_output_file = lz4_output_path + d + "_LZ4";
+            
+            auto start = std::chrono::high_resolution_clock::now();
+            double time = main_encoding_compress(input_file_name, lz4_output_file,
+                                               DefaultParams::WINDOW_SIZE,
+                                               DefaultParams::THRESHOLD,
+                                               DefaultParams::BLOCK_SIZE,
+                                               CompressorType::LZ4,
+                                               DefaultParams::DISTANCE,
+                                               false);  // Set use_approx to false
+            auto end = std::chrono::high_resolution_clock::now();
+            double total_time = std::chrono::duration<double>(end - start).count();
+            
+            if (time >= 0) {
+                time_list.push_back(total_time);
+                std::cout << "LZ4 processing completed - Total time: " << total_time << " seconds" << std::endl;
+            } else {
+                std::cerr << "LZ4 processing failed" << std::endl;
+                time_list.push_back(-1);
+            }
+        }
+
         time_sets[d] = time_list;
     }
 
-    // Write compression times to CSV
-    std::string csv_path = output_path + "time_cost.csv";
-    std::vector<std::string> first_column;
-    first_column.push_back("Compressor");
-    for (const auto& [name, _] : compressors) {
-        first_column.push_back(name);
-    }
+    // Write compression times to separate CSV files for each compressor
+    std::vector<std::string> column_names = {"Compression_Time"};
     
-    bool write_success = write_csv(csv_path, time_sets, datasets, first_column);
+    // Write LZMA results
+    std::string lzma_csv_path = lzma_output_path + "/time_cost.csv";
+    std::map<std::string, std::vector<double>> lzma_time_sets;
+    std::vector<double> lzma_times;
+    for (const auto& d : datasets) {
+        if (time_sets.find(d) != time_sets.end() && time_sets[d].size() > 0) {
+            lzma_times.push_back(time_sets[d][0]); // LZMA is first in the list
+        } else {
+            lzma_times.push_back(-1); // Failed case
+        }
+    }
+    lzma_time_sets["Compression_Time"] = lzma_times;
+    bool lzma_write_success = write_csv(lzma_csv_path, lzma_time_sets, column_names, datasets);
+    
+    // Write ZSTD results
+    std::string zstd_csv_path = zstd_output_path + "/time_cost.csv";
+    std::map<std::string, std::vector<double>> zstd_time_sets;
+    std::vector<double> zstd_times;
+    for (const auto& d : datasets) {
+        if (time_sets.find(d) != time_sets.end() && time_sets[d].size() > 1) {
+            zstd_times.push_back(time_sets[d][1]); // ZSTD is second in the list
+        } else {
+            zstd_times.push_back(-1); // Failed case
+        }
+    }
+    zstd_time_sets["Compression_Time"] = zstd_times;
+    bool zstd_write_success = write_csv(zstd_csv_path, zstd_time_sets, column_names, datasets);
+    
+    // Write LZ4 results
+    std::string lz4_csv_path = base_output_path + "lz4/time_cost.csv";
+    std::map<std::string, std::vector<double>> lz4_time_sets;
+    std::vector<double> lz4_times;
+    for (const auto& d : datasets) {
+        if (time_sets.find(d) != time_sets.end() && time_sets[d].size() > 2) {
+            lz4_times.push_back(time_sets[d][2]); // LZ4 is third in the list
+        } else {
+            lz4_times.push_back(-1); // Failed case
+        }
+    }
+    lz4_time_sets["Compression_Time"] = lz4_times;
+    bool lz4_write_success = write_csv(lz4_csv_path, lz4_time_sets, column_names, datasets);
+    
     cleanup_resources(time_sets);
+    cleanup_resources(lzma_time_sets);
+    cleanup_resources(zstd_time_sets);
+    cleanup_resources(lz4_time_sets);
 
-    if (write_success) {
-        std::cout << "\nAll tasks completed. Results written to: " << csv_path << std::endl;
+    if (lzma_write_success && zstd_write_success && lz4_write_success) {
+        std::cout << "\nAll tasks completed. Results written to separate CSV files:" << std::endl;
+        std::cout << "LZMA results saved in: " << lzma_csv_path << std::endl;
+        std::cout << "ZSTD results saved in: " << zstd_csv_path << std::endl;
+        std::cout << "LZ4 results saved in: " << lz4_csv_path << std::endl;
     } else {
-        std::cerr << "\nFailed to write results to: " << csv_path << std::endl;
+        std::cerr << "\nSome CSV files failed to write:" << std::endl;
+        if (!lzma_write_success) std::cerr << "LZMA CSV write failed" << std::endl;
+        if (!zstd_write_success) std::cerr << "ZSTD CSV write failed" << std::endl;
+        if (!lz4_write_success) std::cerr << "LZ4 CSV write failed" << std::endl;
     }
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 4) {
-        std::cerr << "Usage: " << argv[0] << " <input_file> <output_file> <compressor_type>" << std::endl;
-        return 1;
-    }
-
-    std::string input_file = argv[1];
-    std::string output_file = argv[2];
-    int compressor_type = std::stoi(argv[3]);
-
     try {
-        // Read input file into BitOutBuffer
-        BitOutBuffer out_buffer;
-        std::ifstream in_file(input_file, std::ios::binary);
-        if (!in_file) {
-            throw std::runtime_error("Failed to open input file: " + input_file);
-        }
-
-        // Read and encode data
-        char buffer[1024];
-        while (in_file.read(buffer, sizeof(buffer))) {
-            for (size_t i = 0; i < sizeof(buffer); i++) {
-                out_buffer.encode(static_cast<uint8_t>(buffer[i]), 8);
-            }
-        }
+        std::cout << "\n=== Starting Approximate Encoding ===\n" << std::endl;
+        approx_encoding();
+        std::cout << "\n=== Approximate Encoding Completed ===\n" << std::endl;
         
-        // Handle remaining bytes
-        size_t remaining = in_file.gcount();
-        for (size_t i = 0; i < remaining; i++) {
-            out_buffer.encode(static_cast<uint8_t>(buffer[i]), 8);
-        }
+        // Add a small delay to ensure resources are properly released
+        std::cout.flush();
+        
+        // std::cout << "\n=== Starting Exact Encoding ===\n" << std::endl;
+        // exact_encoding();
+        // std::cout << "\n=== Exact Encoding Completed ===\n" << std::endl;
 
-        // Write compressed output using BitOutBuffer
-        if (!out_buffer.write(output_file, "wb", static_cast<CompressorType>(compressor_type))) {
-            throw std::runtime_error("Failed to write output file: " + output_file);
-        }
-
-        // Verify by reading back
-        BitInBuffer in_buffer;
-        if (!in_buffer.read(output_file, static_cast<CompressorType>(compressor_type))) {
-            throw std::runtime_error("Failed to read compressed file: " + output_file);
-        }
-
-        // Create verification file
-        std::string verify_file = output_file + ".verify";
-        std::ofstream verify_out(verify_file, std::ios::binary);
-        if (!verify_out) {
-            throw std::runtime_error("Failed to open verification file: " + verify_file);
-        }
-
-        // Decode and write data
-        try {
-            while (true) {
-                uint8_t byte = in_buffer.decode(8);
-                verify_out.write(reinterpret_cast<char*>(&byte), 1);
-            }
-        } catch (const std::runtime_error&) {
-            // End of stream
-        }
-
-        std::cout << "Compression and verification completed successfully" << std::endl;
+        std::cout << "\n=== All Tasks Completed ===\n" << std::endl;
         return 0;
-
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    } catch (...) {
+        std::cerr << "Unknown error occurred" << std::endl;
         return 1;
     }
 }

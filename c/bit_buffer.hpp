@@ -10,8 +10,10 @@ enum class CompressorType {
     NONE,
     LZMA,
     GZIP,
-    ZSTD
+    ZSTD,
+    LZ4
 };
+
 
 class BitOutBuffer {
 public:
@@ -42,6 +44,7 @@ private:
     bool compress_lzma(std::vector<uint8_t>& output) const;
     bool compress_gzip(std::vector<uint8_t>& output) const;
     bool compress_zstd(std::vector<uint8_t>& output) const;
+    bool compress_lz4(std::vector<uint8_t>& output) const;
 };
 
 class BitInBuffer {
@@ -58,6 +61,25 @@ public:
     uint32_t decode(uint8_t bit_len);
     bool read(const std::string& file_path);
     bool read(const std::string& file_path, CompressorType compressor);
+    
+    // Optimized batch decode methods - inline for performance
+    inline void decode_bytes(uint8_t* buffer, size_t count) {
+        for (size_t i = 0; i < count; i++) {
+            buffer[i] = static_cast<uint8_t>(decode(8));
+        }
+    }
+    
+    inline uint32_t decode_32() {
+        return decode(32);
+    }
+    
+    inline uint16_t decode_16() {
+        return static_cast<uint16_t>(decode(16));
+    }
+    
+    inline uint8_t decode_8() {
+        return static_cast<uint8_t>(decode(8));
+    }
 
     bool is_aligned() const { return bit_count % 8 == 0; }
     void align() {
@@ -71,11 +93,13 @@ private:
     std::vector<uint8_t> byte_stream;
     uint32_t current_bits;  // Temporary buffer for unused bits
     uint8_t bit_count;      // Number of bits in current_bits
+    size_t byte_position;   // Current position in byte_stream (NEW)
 
     // Private methods
     bool decompress_lzma(std::vector<uint8_t>& output) const;
     bool decompress_gzip(std::vector<uint8_t>& output) const;
     bool decompress_zstd(std::vector<uint8_t>& output) const;
+    bool decompress_lz4(std::vector<uint8_t>& output) const;
 };
 
 class BitCompressor {

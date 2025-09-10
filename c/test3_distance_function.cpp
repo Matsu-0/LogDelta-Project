@@ -9,7 +9,7 @@
 #include "distance.hpp"
 
 // Define dataset names
-const std::vector<std::string> datasets = {"Android", "Apache", "HPC", "Mac", "OpenStack", "Spark", "Zookeeper", "SSH", "Linux", "Proxifier", "Thunderbird"};
+const std::vector<std::string> datasets = {"Android", "Apache", "Mac", "OpenStack", "Spark", "Zookeeper", "SSH", "Linux", "Proxifier", "Thunderbird"};
 // const std::vector<std::string> datasets = {"Apache", "Linux",  "Proxifier", "Zookeeper", "Thunderbird"};
 
 // Define distance function types

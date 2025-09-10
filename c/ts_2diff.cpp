@@ -69,51 +69,50 @@ size_t ts2diff_encode(const std::vector<int>& data, BitOutBuffer& stream) {
     return total_bytes;
 }
 
-// Decode a single block of integers from the bit stream
+// Decode a single block of integers from the bit stream - optimized
 std::vector<int> decode_block(BitInBuffer& stream) {
     stream.align();  // 使用公开方法确保位对齐
-    std::vector<int> result;
     int first_value = stream.decode(32);
     int min_delta = stream.decode(32);
     int delta_length = stream.decode(12);
+    
     if (delta_length == 0) {
-        result.push_back(first_value);
-        return result;
+        return {first_value};  // Return single element vector
     }
+    
     int bit_width = stream.decode(8);
     if (bit_width < 1 || bit_width > 32) {
         throw std::runtime_error("Invalid bit width: " + std::to_string(bit_width));
     }
 
-    // std::cout << "[DECODE BLOCK] first_value=" << first_value
-    //           << ", min_delta=" << min_delta
-    //           << ", delta_length=" << delta_length
-    //           << ", bit_width=" << bit_width << std::endl;
-
-    std::vector<int> delta(delta_length);
-    for (int i = 0; i < delta_length; ++i) {
-        int d = stream.decode(bit_width);
-        delta[i] = d + min_delta;
-    }
-    // 累加还原
+    // Pre-allocate result vector
+    std::vector<int> result;
     result.reserve(delta_length + 1);
+    result.push_back(first_value);
+    
+    // Decode deltas and accumulate directly
     int acc = first_value;
-    result.push_back(acc);
     for (int i = 0; i < delta_length; ++i) {
-        acc += delta[i];
+        int d = stream.decode(bit_width) + min_delta;
+        acc += d;
         result.push_back(acc);
     }
 
     return result;
 }
 
-// Decode a file using ts2diff algorithm into a vector of integers
+// Decode a file using ts2diff algorithm into a vector of integers - optimized
 std::vector<int> ts2diff_decode(BitInBuffer& stream) {
-    std::vector<int> result;
     int realBcnt = stream.decode(32);
+    
+    // Pre-allocate result vector with estimated size
+    std::vector<int> result;
+    result.reserve(realBcnt * block_size);  // Reserve space for all blocks
+    
     for (int i = 0; i < realBcnt; ++i) {
         std::vector<int> block = decode_block(stream);
-        result.insert(result.end(), block.begin(), block.end());
+        // Use move semantics to avoid copying
+        result.insert(result.end(), std::make_move_iterator(block.begin()), std::make_move_iterator(block.end()));
     }
     stream.align();  // 确保解码后对齐到字节边界
     return result;

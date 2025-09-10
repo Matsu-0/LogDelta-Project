@@ -10,7 +10,7 @@
 namespace DefaultParams {
     const int WINDOW_SIZE = 8;
     const double THRESHOLD = 0.06;
-    const int BLOCK_SIZE = 32768;
+    const int BLOCK_SIZE = 32768000;
     const int Q = 3;  // Default Q-gram size
     const CompressorType COMPRESSOR = CompressorType::LZMA;
     const DistanceType DISTANCE = DistanceType::MINHASH;

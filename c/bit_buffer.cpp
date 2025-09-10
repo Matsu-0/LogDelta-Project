@@ -3,11 +3,20 @@
 #include <lzma.h>
 #include <zlib.h>
 #include <zstd.h>
+#include <lz4.h>
+#include <lz4hc.h>
 #include <iostream>
+#include <filesystem>
 
 // Define the static constant members
 constexpr uint8_t BitOutBuffer::BYTE_LENGTH;
 constexpr uint8_t BitInBuffer::BYTE_LENGTH;
+
+// Global compression levels
+int LZMA_LEVEL = 6;
+int GZIP_LEVEL = 1;
+int ZSTD_LEVEL = 3;  // 3, 22
+int LZ4_LEVEL = 9;   // 9, 12
 
 // BitOutBuffer implementation
 BitOutBuffer::BitOutBuffer() 
@@ -65,7 +74,7 @@ bool BitOutBuffer::compress_lzma(std::vector<uint8_t>& output) const {
     lzma_stream strm = LZMA_STREAM_INIT;
     lzma_ret ret;
 
-    ret = lzma_easy_encoder(&strm, 6, LZMA_CHECK_CRC64);
+    ret = lzma_easy_encoder(&strm, LZMA_LEVEL, LZMA_CHECK_CRC64);
     if (ret != LZMA_OK) return false;
 
     output.resize(byte_stream.size() + (byte_stream.size() / 2) + 1024);
@@ -92,7 +101,7 @@ bool BitOutBuffer::compress_gzip(std::vector<uint8_t>& output) const {
 
     if (compress2(output.data(), &out_size, 
                  byte_stream.data(), byte_stream.size(), 
-                 Z_BEST_COMPRESSION) != Z_OK) {
+                 GZIP_LEVEL) != Z_OK) {
         return false;
     }
 
@@ -106,8 +115,28 @@ bool BitOutBuffer::compress_zstd(std::vector<uint8_t>& output) const {
 
     size_t compressed_size = ZSTD_compress(output.data(), out_size,
                                          byte_stream.data(), byte_stream.size(),
-                                         ZSTD_maxCLevel());
+                                         ZSTD_LEVEL);
     if (ZSTD_isError(compressed_size)) {
+        return false;
+    }
+
+    output.resize(compressed_size);
+    return true;
+}
+
+bool BitOutBuffer::compress_lz4(std::vector<uint8_t>& output) const {
+    int out_size = LZ4_compressBound(byte_stream.size());
+    output.resize(out_size);
+
+    int compressed_size = LZ4_compress_HC(
+        reinterpret_cast<const char*>(byte_stream.data()),
+        reinterpret_cast<char*>(output.data()),
+        byte_stream.size(),
+        out_size,
+        LZ4_LEVEL
+    );
+    
+    if (compressed_size <= 0) {
         return false;
     }
 
@@ -154,12 +183,31 @@ bool BitOutBuffer::write(const std::string& file_path, const std::string& mode, 
             }
             break;
 
+        case CompressorType::LZ4:
+            compression_success = compress_lz4(compressed_data);
+            if (compression_success) {
+                data_to_write = compressed_data.data();
+                size_to_write = compressed_data.size();
+            }
+            break;
+
         case CompressorType::NONE:
             break;
     }
 
     if (!compression_success) {
         std::cerr << "Error: Compression failed" << std::endl;
+        return false;
+    }
+
+    // 新增：自动创建父目录
+    try {
+        std::filesystem::path out_path(file_path);
+        if (out_path.has_parent_path()) {
+            std::filesystem::create_directories(out_path.parent_path());
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error: Failed to create directory for file '" << file_path << "': " << e.what() << std::endl;
         return false;
     }
 
@@ -184,7 +232,7 @@ bool BitOutBuffer::write(const std::string& file_path, const std::string& mode, 
         return false;
     }
 
-    // Clear the buffer after successful write using the clear() interface
+    // 写入成功后释放缓冲区
     clear();
 
     return true;
@@ -194,7 +242,8 @@ bool BitOutBuffer::write(const std::string& file_path, const std::string& mode, 
 // BitInBuffer implementation
 BitInBuffer::BitInBuffer() 
     : current_bits(0)
-    , bit_count(0) {
+    , bit_count(0)
+    , byte_position(0) {
     byte_stream.reserve(1024);  // Initial capacity
 }
 
@@ -222,6 +271,8 @@ bool BitInBuffer::read(const std::string& file_path) {
         compressor = CompressorType::GZIP;
     } else if (ext == "zstd") {
         compressor = CompressorType::ZSTD;
+    } else if (ext == "lz4") {
+        compressor = CompressorType::LZ4;
     } else if (ext == "bin") {
         compressor = CompressorType::NONE;
     } else {
@@ -231,6 +282,7 @@ bool BitInBuffer::read(const std::string& file_path) {
 
     // Decompress based on compressor type
     bool decompression_success = true;
+    
     switch(compressor) {
         case CompressorType::LZMA: {
             byte_stream = compressed_data;
@@ -259,6 +311,15 @@ bool BitInBuffer::read(const std::string& file_path) {
             }
             break;
         }
+        case CompressorType::LZ4: {
+            byte_stream = compressed_data;
+            std::vector<uint8_t> decompressed;
+            decompression_success = decompress_lz4(decompressed);
+            if (decompression_success) {
+                byte_stream = std::move(decompressed);
+            }
+            break;
+        }
         case CompressorType::NONE:
             byte_stream = compressed_data;
             break;
@@ -269,6 +330,7 @@ bool BitInBuffer::read(const std::string& file_path) {
     // Reset temporary buffer
     current_bits = 0;
     bit_count = 0;
+    byte_position = 0;
 
     return true;
 }
@@ -372,6 +434,29 @@ bool BitInBuffer::decompress_zstd(std::vector<uint8_t>& output) const {
     return true;
 }
 
+bool BitInBuffer::decompress_lz4(std::vector<uint8_t>& output) const {
+    // For LZ4, we need to know the original size
+    // Since LZ4 doesn't store the original size in the compressed data,
+    // we'll need to estimate it or store it separately
+    // For now, we'll use a reasonable estimate: input size * 4
+    size_t estimated_size = byte_stream.size() * 4;
+    output.resize(estimated_size);
+    
+    int decompressed_size = LZ4_decompress_safe(
+        reinterpret_cast<const char*>(byte_stream.data()),
+        reinterpret_cast<char*>(output.data()),
+        byte_stream.size(),
+        estimated_size
+    );
+    
+    if (decompressed_size < 0) {
+        return false;
+    }
+    
+    output.resize(decompressed_size);
+    return true;
+}
+
 uint32_t BitInBuffer::decode(uint8_t bit_len) {
     if (bit_len == 0 || bit_len > 32) {
         throw std::invalid_argument("Bit length must be between 1 and 32");
@@ -383,13 +468,12 @@ uint32_t BitInBuffer::decode(uint8_t bit_len) {
     while (bits_remaining > 0) {
         // If we need more bits, read from the byte stream
         if (bit_count < bits_remaining) {
-            if (byte_stream.empty()) {
+            if (byte_position >= byte_stream.size()) {
                 throw std::runtime_error("Attempting to read past end of buffer");
             }
 
-            // Read a new byte and add it to current_bits
-            uint8_t new_byte = byte_stream.front();
-            byte_stream.erase(byte_stream.begin());  // Remove the byte we just read
+            // Read a new byte and add it to current_bits - OPTIMIZED: no erase()
+            uint8_t new_byte = byte_stream[byte_position++];
             current_bits = (current_bits << BYTE_LENGTH) | new_byte;
             bit_count += BYTE_LENGTH;
         }
@@ -437,6 +521,9 @@ bool BitCompressor::compress_file(const std::string& input_path, const std::stri
         case CompressorType::ZSTD:
             final_output_path += ".zstd";
             break;
+        case CompressorType::LZ4:
+            final_output_path += ".lz4";
+            break;
         case CompressorType::NONE:
             final_output_path += ".bin";
             break;
@@ -477,7 +564,7 @@ bool BitCompressor::compress_file(const std::string& input_path, const std::stri
 
             if (compress2(compressed_data.data(), &out_size, 
                          input_data.data(), input_data.size(), 
-                         Z_BEST_COMPRESSION) != Z_OK) {
+                         GZIP_LEVEL) != Z_OK) {
                 return false;
             }
 
@@ -491,8 +578,28 @@ bool BitCompressor::compress_file(const std::string& input_path, const std::stri
 
             size_t compressed_size = ZSTD_compress(compressed_data.data(), out_size,
                                                  input_data.data(), input_data.size(),
-                                                 ZSTD_maxCLevel());
+                                                 ZSTD_LEVEL);
             if (ZSTD_isError(compressed_size)) {
+                return false;
+            }
+
+            compressed_data.resize(compressed_size);
+            break;
+        }
+
+        case CompressorType::LZ4: {
+            int out_size = LZ4_compressBound(input_data.size());
+            compressed_data.resize(out_size);
+
+            int compressed_size = LZ4_compress_HC(
+                reinterpret_cast<const char*>(input_data.data()),
+                reinterpret_cast<char*>(compressed_data.data()),
+                input_data.size(),
+                out_size,
+                LZ4_LEVEL
+            );
+            
+            if (compressed_size <= 0) {
                 return false;
             }
 
@@ -574,10 +681,10 @@ void test_bitbuffer_workflow() {
     }
     
     // Step 2: Compress the intermediate file using different compressors
-    const char* compressor_names[] = {"NONE", "LZMA", "GZIP", "ZSTD"};
-    CompressorType compressors[] = {CompressorType::NONE, CompressorType::LZMA, CompressorType::GZIP, CompressorType::ZSTD};
+    const char* compressor_names[] = {"NONE", "LZMA", "GZIP", "ZSTD", "LZ4"};
+    CompressorType compressors[] = {CompressorType::NONE, CompressorType::LZMA, CompressorType::GZIP, CompressorType::ZSTD, CompressorType::LZ4};
     
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 5; ++i) {
         std::cout << "\nTesting " << compressor_names[i] << " compression:" << std::endl;
         std::cout << "----------------------------------------" << std::endl;
         
@@ -591,7 +698,8 @@ void test_bitbuffer_workflow() {
         BitInBuffer inbuf;
         if (!inbuf.read(compressed_file + (compressors[i] == CompressorType::NONE ? ".bin" : 
                                         compressors[i] == CompressorType::LZMA ? ".lzma" :
-                                        compressors[i] == CompressorType::GZIP ? ".gzip" : ".zstd"))) {
+                                        compressors[i] == CompressorType::GZIP ? ".gzip" : 
+                                        compressors[i] == CompressorType::ZSTD ? ".zstd" : ".lz4"))) {
             std::cout << "Failed to read compressed file for " << compressor_names[i] << std::endl;
             continue;
         }

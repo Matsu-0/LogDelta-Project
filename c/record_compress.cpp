@@ -18,7 +18,7 @@
 
 // Define macro for encoding statistics output
 #ifndef ENCODING_STATS
-#define ENCODING_STATS 1  // Set to 1 to enable statistics output
+#define ENCODING_STATS 0  // Set to 1 to enable statistics output
 #endif
 
 #define PRINT_STATS(x) if (ENCODING_STATS) { std::cout << x << std::endl; }
@@ -283,8 +283,10 @@ double main_encoding_compress(const std::string& input_path,
         std::vector<std::string> line_list;
         int index = 0;
 
-        // Read data block
+
         auto read_start = std::chrono::high_resolution_clock::now();
+        // // Read data block
+        // auto read_start = std::chrono::high_resolution_clock::now();
         while (index < block_size) {
             std::string line;
             if (!std::getline(input, line)) {
@@ -409,13 +411,13 @@ double main_encoding_compress(const std::string& input_path,
     double comp_time = std::chrono::duration<double>(comp_end - comp_start).count();
 
     // Print time statistics
-    std::cout << "\nTime statistics:" << std::endl;
-    std::cout << "  Read time: " << read_time << " seconds" << std::endl;
-    std::cout << "  Distance calculation time: " << distance_time << " seconds" << std::endl;
-    std::cout << "  Q-gram matching time: " << match_time << " seconds" << std::endl;
-    std::cout << "  Encoding time: " << encoding_time << " seconds" << std::endl;
-    std::cout << "  Compressor compression time: " << comp_time << " seconds" << std::endl;
-    std::cout << "  Total time: " << total_time + comp_time << " seconds" << std::endl;
+    // std::cout << "Time statistics:" << std::endl;
+    // std::cout << "  Read time: " << read_time << " seconds" << std::endl;
+    // std::cout << "  Distance calculation time: " << distance_time << " seconds" << std::endl;
+    // std::cout << "  Q-gram matching time: " << match_time << " seconds" << std::endl;
+    // std::cout << "  Encoding time: " << encoding_time << " seconds" << std::endl;
+    // std::cout << "  Compressor compression time: " << comp_time << " seconds" << std::endl;
+    std::cout << "Compressing Total time: " << total_time + comp_time << " seconds" << std::endl;
 
     // // Print matching statistics
     // std::cout << "\nMatching statistics:" << std::endl;
@@ -427,7 +429,7 @@ double main_encoding_compress(const std::string& input_path,
     return total_time + comp_time;
 }
 
-#ifdef RECORD_COMPRESS
+#if defined(RECORD_COMPRESS) && !defined(TEST_MODE)
 int main(int argc, char* argv[]) {
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size] [distance] [use_approx]" << std::endl;
@@ -444,7 +446,7 @@ int main(int argc, char* argv[]) {
     std::string compressor_setting = "none";
     int window_size = 8;
     double threshold = 0.06;
-    int block_size = 32768;
+    int block_size = 327680000;
     std::string distance_setting = "minhash";
 
     CompressorType compressor = CompressorType::NONE;

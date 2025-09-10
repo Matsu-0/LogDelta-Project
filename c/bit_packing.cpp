@@ -75,32 +75,34 @@ std::vector<int> bit_packing_decode(const std::vector<unsigned char>& encoded, i
         return {};
     }
 
-    // Convert bytes to binary string
-    std::string binary_string;
-    binary_string.reserve(encoded.size() * 8);
+    // Read bit_width directly from first byte
+    int bit_width = encoded[0];
     
-    for (unsigned char byte : encoded) {
-        for (int j = 7; j >= 0; j--) {
-            binary_string += '0' + ((byte >> j) & 1);
-        }
-    }
-
-    // Read bit_width from first byte
-    int bit_width = 0;
-    for (int i = 0; i < 8; i++) {
-        bit_width = (bit_width << 1) | (binary_string[i] - '0');
-    }
-
-    // Extract values
-    std::vector<int> result(original_length);
+    // Pre-allocate result vector
+    std::vector<int> result;
+    result.reserve(original_length);
+    
+    // Extract values directly from bytes without string conversion
+    // int bit_pos = 8;  // Start after bit_width byte
+    int byte_pos = 1; // Start from second byte
+    int bit_in_byte = 0;
+    
     for (int i = 0; i < original_length; i++) {
         int val = 0;
-        int start_pos = 8 + i * bit_width;
         
+        // Read bit_width bits for this value
         for (int j = 0; j < bit_width; j++) {
-            val = (val << 1) | (binary_string[start_pos + j] - '0');
+            if (bit_in_byte >= 8) {
+                byte_pos++;
+                bit_in_byte = 0;
+            }
+            
+            int bit = (encoded[byte_pos] >> (7 - bit_in_byte)) & 1;
+            val = (val << 1) | bit;
+            bit_in_byte++;
         }
-        result[i] = val;
+        
+        result.push_back(val);
     }
 
     return result;
