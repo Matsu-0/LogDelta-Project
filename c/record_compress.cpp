@@ -241,7 +241,8 @@ double main_encoding_compress(const std::string& input_path,
                                    double threshold, int block_size,
                                    CompressorType compressor,
                                    DistanceType distance,
-                                   bool use_approx) {
+                                   bool use_approx,
+                                   int q_value) {
     auto total_start_time = std::chrono::high_resolution_clock::now();
     
     // Add counters
@@ -279,7 +280,7 @@ double main_encoding_compress(const std::string& input_path,
 
         MinHash::getInstance().clearCache();
         
-        std::vector<int> line_flag;
+        // std::vector<int> line_flag;
         std::vector<std::string> line_list;
         int index = 0;
 
@@ -317,7 +318,7 @@ double main_encoding_compress(const std::string& input_path,
             // Calculate distances
             double min_distance = 1.0;  // Initialize to maximum distance
             for (size_t i = 0; i < q.size(); i++) {
-                double tmp_dist = Distance::calculateDistance(q[i], line, distance, DefaultParams::Q);
+                double tmp_dist = Distance::calculateDistance(q[i], line, distance, q_value);
                 if (tmp_dist < min_distance) {
                     min_distance = tmp_dist;
                     begin = static_cast<int>(i);
@@ -343,8 +344,8 @@ double main_encoding_compress(const std::string& input_path,
                 std::vector<OperationItem> op_list;
                 double new_distance;
                 if (use_approx) {
-                    // Use approximate algorithm with default Q
-                    std::tie(op_list, new_distance) = getQgramMatchOplist(q[begin], line, DefaultParams::Q);
+                    // Use approximate algorithm with specified Q
+                    std::tie(op_list, new_distance) = getQgramMatchOplist(q[begin], line, q_value);
                 } else {
                     // Use exact algorithm
                     std::tie(op_list, new_distance) = getSubstitutionOplist(q[begin], line);
@@ -432,7 +433,7 @@ double main_encoding_compress(const std::string& input_path,
 #if defined(RECORD_COMPRESS) && !defined(TEST_MODE)
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [log_length] [threshold] [block_size] [distance] [use_approx]" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <input_path> <output_path> [compressor] [window_size] [threshold] [block_size] [distance] [use_approx] [q_value]" << std::endl;
         std::cerr << "Compressor options: none, lzma, gzip, zstd" << std::endl;
         std::cerr << "Distance options: cosine, minhash, qgram" << std::endl;
         std::cerr << "Use approx options: true, false (default: true)" << std::endl;
@@ -448,6 +449,7 @@ int main(int argc, char* argv[]) {
     double threshold = 0.06;
     int block_size = 327680000;
     std::string distance_setting = "minhash";
+    int q_value = 3;  // Default Q value
 
     CompressorType compressor = CompressorType::NONE;
     DistanceType distance = DistanceType::MINHASH;
@@ -529,6 +531,11 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // Add q_value parameter
+    if (argc > 9 && argv[9] != nullptr) {
+        q_value = std::stoi(argv[9]);
+    }
+
     // Print parameters for verification
     std::cout << "\nUsing parameters:" << std::endl;
     std::cout << "  Compressor: " << compressor_setting << std::endl;
@@ -537,6 +544,7 @@ int main(int argc, char* argv[]) {
     std::cout << "  Block size: " << block_size << std::endl;
     std::cout << "  Distance function: " << distance_setting << std::endl;
     std::cout << "  Use approximation: " << (use_approx ? "true" : "false") << std::endl;
+    std::cout << "  Q value: " << q_value << std::endl;
 
     try {
         main_encoding_compress(
@@ -547,7 +555,8 @@ int main(int argc, char* argv[]) {
             block_size,
             compressor,
             distance,
-            use_approx
+            use_approx,
+            q_value
         );
         
         // std::cout << "Compression completed in " << time_cost << " seconds." << std::endl;

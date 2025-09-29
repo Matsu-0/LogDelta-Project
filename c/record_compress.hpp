@@ -37,11 +37,11 @@ void byteArrayEncoding(const std::vector<Record>& records,
 double main_encoding_compress(const std::string& input_path, 
                             const std::string& output_path, 
                             int window_size = DefaultParams::WINDOW_SIZE,
-                            // int log_length = 0,
                             double threshold = DefaultParams::THRESHOLD,
                             int block_size = DefaultParams::BLOCK_SIZE,
                             CompressorType compressor = DefaultParams::COMPRESSOR,
                             DistanceType distance = DefaultParams::DISTANCE,
-                            bool use_approx = DefaultParams::USE_APPROX);
+                            bool use_approx = DefaultParams::USE_APPROX,
+                            int q_value = DefaultParams::Q);
 
 #endif // RECORD_COMPRESS_HPP 

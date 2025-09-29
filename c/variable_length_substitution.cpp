@@ -7,6 +7,8 @@
 #include <iostream>  // For testing
 #include <limits>
 #include <tuple>
+#include <iomanip>   // For std::setprecision
+#include <fstream>   // For file operations
 
 std::vector<Position> getSearchRange(int x, int y, const std::string& str1, const std::string& str2, int lmax = 3) {
     std::vector<Position> K;  // Store feasible position tuples
@@ -226,62 +228,86 @@ std::string recoverSubstitutionString(
     return result;
 }
 
-// Test main function (commented out)
-/*
-int main() {
-    // Test cases
-    std::vector<std::pair<std::string, std::string>> test_cases = {
-        // Basic cases
-        {"hello", "hello"},      // identical strings
-        {"hello", "helo"},       // simple deletion
-        {"hello", "hello world"}, // simple insertion
-        {"hello", "help"},       // simple substitution
-        {"", "hello"},           // empty source
-        {"hello", ""},           // empty target
-        {"kitten", "sitting"},   // multiple operations
-
-        // Complex cases
-        {"The quick brown fox", "The quick brown dog"},  // word substitution
-        {"Hello World!", "Hello wonderful world!"},       // word insertion
-        {"Programming in C++", "Programming with C++"},   // word replacement
-        {"OpenAI ChatGPT", "OpenAI GPT-4 ChatGPT"},     // middle insertion
-        {"Remove extra  spaces", "Remove extra spaces"},  // multiple space to single
-        {"Fix-these-dashes", "Fix these dashes"},        // dash to space
-        {"camelCaseText", "camel_case_text"},           // camelCase to snake_case
-        {"   trim spaces   ", "trim spaces"},            // trim whitespace
-        {"Multiple\nline\ntext", "Multiple line text"},  // newline to space
-        {"Repeated repeated words", "Repeated words"},    // remove repeated word
-        {"Version 1.0.0", "Version 2.0.0"},             // version number change
-        {"<html><body>Text</body></html>", "<div>Text</div>"}, // HTML tag change
-        {"192.168.0.1", "192.168.1.1"},                // IP address change
-    };
-
-    for (const auto& [str1, str2] : test_cases) {
-        std::cout << "\nTest case: \"" << str1 << "\" -> \"" << str2 << "\"\n";
-        
-        // Get operations and distance
-        auto [operations, distance] = getSubstitutionOplist(str1, str2);
-        
-        // Print operations
-        std::cout << "Edit distance: " << distance << "\n";
-        std::cout << "Operations:\n";
-        for (const auto& op : operations) {
-            std::cout << "  Position: " << op.position 
-                     << ", Delete length: " << op.length1 
-                     << ", Insert length: " << op.length2 
-                     << ", Substring: \"" << op.substr << "\"\n";
+// 辅助函数：打印 DP 表格为 CSV 格式并保存到文件
+void printDPTableCSV(const std::vector<std::vector<double>>& dp, 
+                     const std::string& str1, const std::string& str2) {
+    std::cout << "\n=== DP 表格 (CSV 格式) ===\n";
+    
+    // 创建 CSV 文件
+    std::ofstream csvFile("dp_table.csv");
+    if (!csvFile.is_open()) {
+        std::cerr << "无法创建 CSV 文件！" << std::endl;
+        return;
+    }
+    
+    // 输出表头（列标签）
+    std::cout << ",";
+    csvFile << ",";
+    for (size_t j = 0; j <= str2.length(); j++) {
+        if (j == 0) {
+            std::cout << "ε";
+            csvFile << "ε";
+        } else {
+            std::cout << str2[j-1];
+            csvFile << str2[j-1];
+        }
+        if (j < str2.length()) {
+            std::cout << ",";
+            csvFile << ",";
+        }
+    }
+    std::cout << "\n";
+    csvFile << "\n";
+    
+    // 输出数据行
+    for (size_t i = 0; i <= str1.length(); i++) {
+        // 行标签
+        if (i == 0) {
+            std::cout << "ε";
+            csvFile << "ε";
+        } else {
+            std::cout << str1[i-1];
+            csvFile << str1[i-1];
         }
         
-        // Recover string and verify
-        std::string recovered = recoverSubstitutionString(operations, str1);
-        bool success = (recovered == str2);
-        
-        std::cout << "Recovery result:\n"
-                  << "  Original : \"" << str1 << "\"\n"
-                  << "  Target  : \"" << str2 << "\"\n"
-                  << "  Recovered: \"" << recovered << "\"\n"
-                  << "  Success : " << (success ? "Yes" : "No") << "\n";
+        // 数据列
+        for (size_t j = 0; j <= str2.length(); j++) {
+            std::cout << "," << std::fixed << std::setprecision(2) << dp[i][j];
+            csvFile << "," << std::fixed << std::setprecision(2) << dp[i][j];
+        }
+        std::cout << "\n";
+        csvFile << "\n";
     }
-    return 0;
+    std::cout << "\n";
+    csvFile.close();
+    
+    std::cout << "DP 表格已保存到 dp_table.csv 文件中\n";
 }
-*/
+
+// 辅助函数：打印 SearchRange 结果并保存到文件
+void printSearchRange(const std::vector<Position>& range, int x, int y, std::ofstream& csvFile) {
+    std::cout << "位置 (" << x << ", " << y << ") 的 SearchRange:\n";
+    csvFile << "位置 (" << x << ", " << y << ") 的 SearchRange:\n";
+    
+    if (range.empty()) {
+        std::cout << "  无可行位置\n";
+        csvFile << "  无可行位置\n";
+    } else {
+        std::cout << "  可行位置数量: " << range.size() << "\n";
+        csvFile << "  可行位置数量: " << range.size() << "\n";
+        std::cout << "  位置列表: ";
+        csvFile << "  位置列表: ";
+        for (size_t i = 0; i < range.size(); i++) {
+            std::cout << "(" << range[i].i << ", " << range[i].j << ")";
+            csvFile << "(" << range[i].i << ", " << range[i].j << ")";
+            if (i < range.size() - 1) {
+                std::cout << ", ";
+                csvFile << ", ";
+            }
+        }
+        std::cout << "\n";
+        csvFile << "\n";
+    }
+    std::cout << "\n";
+    csvFile << "\n";
+}
