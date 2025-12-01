@@ -15,8 +15,8 @@ constexpr uint8_t BitInBuffer::BYTE_LENGTH;
 // Global compression levels
 int LZMA_LEVEL = 6;
 int GZIP_LEVEL = 1;
-int ZSTD_LEVEL = 3;  // 3, 22
-int LZ4_LEVEL = 9;   // 9, 12
+int ZSTD_LEVEL = 21;
+int LZ4_LEVEL = 9;
 
 // BitOutBuffer implementation
 BitOutBuffer::BitOutBuffer() 
