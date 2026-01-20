@@ -5,6 +5,7 @@
 #include <zstd.h>
 #include <lz4.h>
 #include <lz4hc.h>
+#include <bzlib.h>
 #include <iostream>
 #include <filesystem>
 
@@ -15,8 +16,9 @@ constexpr uint8_t BitInBuffer::BYTE_LENGTH;
 // Global compression levels
 int LZMA_LEVEL = 6;
 int GZIP_LEVEL = 1;
-int ZSTD_LEVEL = 21;
-int LZ4_LEVEL = 9;
+int ZSTD_LEVEL = 20;  // 3, 22
+int LZ4_LEVEL = 9;   // 9, 12
+int BZIP2_LEVEL = 9; // 1-9
 
 // BitOutBuffer implementation
 BitOutBuffer::BitOutBuffer() 
@@ -144,6 +146,28 @@ bool BitOutBuffer::compress_lz4(std::vector<uint8_t>& output) const {
     return true;
 }
 
+bool BitOutBuffer::compress_bzip2(std::vector<uint8_t>& output) const {
+    unsigned int out_size = byte_stream.size() + (byte_stream.size() / 100) + 600;
+    output.resize(out_size);
+
+    int compressed_size = BZ2_bzBuffToBuffCompress(
+        reinterpret_cast<char*>(output.data()),
+        &out_size,
+        const_cast<char*>(reinterpret_cast<const char*>(byte_stream.data())),
+        byte_stream.size(),
+        BZIP2_LEVEL,
+        0,
+        0
+    );
+
+    if (compressed_size != BZ_OK) {
+        return false;
+    }
+
+    output.resize(out_size);
+    return true;
+}
+
 void BitOutBuffer::clear() {
     byte_stream.clear();
     current_bits = 0;
@@ -185,6 +209,14 @@ bool BitOutBuffer::write(const std::string& file_path, const std::string& mode, 
 
         case CompressorType::LZ4:
             compression_success = compress_lz4(compressed_data);
+            if (compression_success) {
+                data_to_write = compressed_data.data();
+                size_to_write = compressed_data.size();
+            }
+            break;
+
+        case CompressorType::BZIP2:
+            compression_success = compress_bzip2(compressed_data);
             if (compression_success) {
                 data_to_write = compressed_data.data();
                 size_to_write = compressed_data.size();
@@ -273,6 +305,8 @@ bool BitInBuffer::read(const std::string& file_path) {
         compressor = CompressorType::ZSTD;
     } else if (ext == "lz4") {
         compressor = CompressorType::LZ4;
+    } else if (ext == "bz2" || ext == "bzip2") {
+        compressor = CompressorType::BZIP2;
     } else if (ext == "bin") {
         compressor = CompressorType::NONE;
     } else {
@@ -315,6 +349,94 @@ bool BitInBuffer::read(const std::string& file_path) {
             byte_stream = compressed_data;
             std::vector<uint8_t> decompressed;
             decompression_success = decompress_lz4(decompressed);
+            if (decompression_success) {
+                byte_stream = std::move(decompressed);
+            }
+            break;
+        }
+        case CompressorType::BZIP2: {
+            byte_stream = compressed_data;
+            std::vector<uint8_t> decompressed;
+            decompression_success = decompress_bzip2(decompressed);
+            if (decompression_success) {
+                byte_stream = std::move(decompressed);
+            }
+            break;
+        }
+        case CompressorType::NONE:
+            byte_stream = compressed_data;
+            break;
+    }
+
+    if (!decompression_success) return false;
+
+    // Reset temporary buffer
+    current_bits = 0;
+    bit_count = 0;
+    byte_position = 0;
+
+    return true;
+}
+
+bool BitInBuffer::read(const std::string& file_path, CompressorType compressor) {
+    // First read the file
+    std::ifstream file(file_path, std::ios::binary | std::ios::ate);
+    if (!file) return false;
+
+    // Get file size
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    // Read file into temporary buffer
+    std::vector<uint8_t> compressed_data(size);
+    if (!file.read(reinterpret_cast<char*>(compressed_data.data()), size)) {
+        return false;
+    }
+
+    // Decompress based on specified compressor type
+    bool decompression_success = true;
+    
+    switch(compressor) {
+        case CompressorType::LZMA: {
+            byte_stream = compressed_data;
+            std::vector<uint8_t> decompressed;
+            decompression_success = decompress_lzma(decompressed);
+            if (decompression_success) {
+                byte_stream = std::move(decompressed);
+            }
+            break;
+        }
+        case CompressorType::GZIP: {
+            byte_stream = compressed_data;
+            std::vector<uint8_t> decompressed;
+            decompression_success = decompress_gzip(decompressed);
+            if (decompression_success) {
+                byte_stream = std::move(decompressed);
+            }
+            break;
+        }
+        case CompressorType::ZSTD: {
+            byte_stream = compressed_data;
+            std::vector<uint8_t> decompressed;
+            decompression_success = decompress_zstd(decompressed);
+            if (decompression_success) {
+                byte_stream = std::move(decompressed);
+            }
+            break;
+        }
+        case CompressorType::LZ4: {
+            byte_stream = compressed_data;
+            std::vector<uint8_t> decompressed;
+            decompression_success = decompress_lz4(decompressed);
+            if (decompression_success) {
+                byte_stream = std::move(decompressed);
+            }
+            break;
+        }
+        case CompressorType::BZIP2: {
+            byte_stream = compressed_data;
+            std::vector<uint8_t> decompressed;
+            decompression_success = decompress_bzip2(decompressed);
             if (decompression_success) {
                 byte_stream = std::move(decompressed);
             }
@@ -457,6 +579,44 @@ bool BitInBuffer::decompress_lz4(std::vector<uint8_t>& output) const {
     return true;
 }
 
+bool BitInBuffer::decompress_bzip2(std::vector<uint8_t>& output) const {
+    // Start with output buffer same size as input * 4 (reasonable estimate)
+    unsigned int out_size = byte_stream.size() * 4;
+    output.resize(out_size);
+    
+    int ret = BZ2_bzBuffToBuffDecompress(
+        reinterpret_cast<char*>(output.data()),
+        &out_size,
+        const_cast<char*>(reinterpret_cast<const char*>(byte_stream.data())),
+        byte_stream.size(),
+        0,
+        0
+    );
+    
+    if (ret != BZ_OK) {
+        // If buffer was too small, try with larger buffer
+        if (ret == BZ_OUTBUFF_FULL) {
+            out_size = byte_stream.size() * 10;
+            output.resize(out_size);
+            ret = BZ2_bzBuffToBuffDecompress(
+                reinterpret_cast<char*>(output.data()),
+                &out_size,
+                const_cast<char*>(reinterpret_cast<const char*>(byte_stream.data())),
+                byte_stream.size(),
+                0,
+                0
+            );
+        }
+        
+        if (ret != BZ_OK) {
+            return false;
+        }
+    }
+    
+    output.resize(out_size);
+    return true;
+}
+
 uint32_t BitInBuffer::decode(uint8_t bit_len) {
     if (bit_len == 0 || bit_len > 32) {
         throw std::invalid_argument("Bit length must be between 1 and 32");
@@ -523,6 +683,9 @@ bool BitCompressor::compress_file(const std::string& input_path, const std::stri
             break;
         case CompressorType::LZ4:
             final_output_path += ".lz4";
+            break;
+        case CompressorType::BZIP2:
+            final_output_path += ".bz2";
             break;
         case CompressorType::NONE:
             final_output_path += ".bin";
@@ -604,6 +767,28 @@ bool BitCompressor::compress_file(const std::string& input_path, const std::stri
             }
 
             compressed_data.resize(compressed_size);
+            break;
+        }
+
+        case CompressorType::BZIP2: {
+            unsigned int out_size = input_data.size() + (input_data.size() / 100) + 600;
+            compressed_data.resize(out_size);
+
+            int ret = BZ2_bzBuffToBuffCompress(
+                reinterpret_cast<char*>(compressed_data.data()),
+                &out_size,
+                const_cast<char*>(reinterpret_cast<const char*>(input_data.data())),
+                input_data.size(),
+                BZIP2_LEVEL,
+                0,
+                0
+            );
+
+            if (ret != BZ_OK) {
+                return false;
+            }
+
+            compressed_data.resize(out_size);
             break;
         }
 

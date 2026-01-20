@@ -11,7 +11,8 @@ enum class CompressorType {
     LZMA,
     GZIP,
     ZSTD,
-    LZ4
+    LZ4,
+    BZIP2
 };
 
 
@@ -45,6 +46,7 @@ private:
     bool compress_gzip(std::vector<uint8_t>& output) const;
     bool compress_zstd(std::vector<uint8_t>& output) const;
     bool compress_lz4(std::vector<uint8_t>& output) const;
+    bool compress_bzip2(std::vector<uint8_t>& output) const;
 };
 
 class BitInBuffer {
@@ -100,6 +102,7 @@ private:
     bool decompress_gzip(std::vector<uint8_t>& output) const;
     bool decompress_zstd(std::vector<uint8_t>& output) const;
     bool decompress_lz4(std::vector<uint8_t>& output) const;
+    bool decompress_bzip2(std::vector<uint8_t>& output) const;
 };
 
 class BitCompressor {

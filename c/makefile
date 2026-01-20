@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -O2 -I../lib/include
-LDFLAGS = -llzma -lz -lzstd ../lib/lib/liblz4.a
+LDFLAGS = -llzma -lz -lzstd -lbz2 ../lib/lib/liblz4.a
 
 # Common source files
 COMMON_SRCS = bit_buffer.cpp \
